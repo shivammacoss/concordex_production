@@ -383,11 +383,10 @@ router.put('/lp-settings', async (req, res) => {
         apiSecret: settings.lpApiSecret
       })
       
-      // Update WebSocket connection
-      // Note: This would require reconnecting the socket client
-      // For now, we'll just save the settings
+      // Reconnect WebSocket with new settings
+      corecenSocketClient.reconnect()
       
-      console.log('[Book Management] LP settings updated successfully')
+      console.log('[Book Management] LP settings updated and WebSocket reconnected')
       
       res.json({
         success: true,
