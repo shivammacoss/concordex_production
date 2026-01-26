@@ -1,0 +1,125 @@
+//@version=5
+strategy("Grid Trading Strategy", overlay=true, pyramiding=10, default_qty_type=strategy.percent_of_equity, default_qty_value=10)
+
+// ============================================
+// GRID TRADING STRATEGY FOR PAPER TRADING
+// Compatible with TradingView Alerts + Webhooks
+// ============================================
+
+// Grid Parameters
+gridSize = input.float(1.0, "Grid Size (%)", minval=0.1, maxval=10.0, step=0.1)
+gridLevels = input.int(5, "Number of Grid Levels", minval=1, maxval=20)
+useATR = input.bool(false, "Use ATR for Grid Size")
+atrPeriod = input.int(14, "ATR Period", minval=1)
+atrMultiplier = input.float(1.0, "ATR Multiplier", minval=0.1, maxval=5.0)
+
+// Take Profit / Stop Loss
+takeProfitPct = input.float(2.0, "Take Profit (%)", minval=0.1, maxval=50.0)
+stopLossPct = input.float(1.0, "Stop Loss (%)", minval=0.1, maxval=50.0)
+useBasketTP = input.bool(true, "Use Basket Take Profit")
+basketTPAmount = input.float(100, "Basket TP Amount ($)", minval=1)
+
+// Webhook Settings
+webhookSecret = input.string("YOUR_WEBHOOK_SECRET", "Webhook Secret")
+accountId = input.string("", "Trading Account ID")
+
+// Calculate dynamic grid size using ATR
+atrValue = ta.atr(atrPeriod)
+dynamicGridSize = useATR ? (atrValue / close * 100 * atrMultiplier) : gridSize
+
+// Track grid levels
+var float basePrice = na
+var int gridDirection = 0
+var float[] gridPrices = array.new_float(0)
+
+// Initialize base price
+if barstate.isfirst
+    basePrice := close
+
+// Reset grid on significant move
+priceChange = math.abs(close - basePrice) / basePrice * 100
+if priceChange > gridSize * gridLevels * 2
+    basePrice := close
+    array.clear(gridPrices)
+
+// Calculate grid levels
+upperGrid1 = basePrice * (1 + dynamicGridSize / 100)
+upperGrid2 = basePrice * (1 + dynamicGridSize * 2 / 100)
+upperGrid3 = basePrice * (1 + dynamicGridSize * 3 / 100)
+lowerGrid1 = basePrice * (1 - dynamicGridSize / 100)
+lowerGrid2 = basePrice * (1 - dynamicGridSize * 2 / 100)
+lowerGrid3 = basePrice * (1 - dynamicGridSize * 3 / 100)
+
+// Entry conditions - Buy at lower grid levels
+buyCondition1 = ta.crossunder(low, lowerGrid1) and strategy.opentrades < gridLevels
+buyCondition2 = ta.crossunder(low, lowerGrid2) and strategy.opentrades < gridLevels
+buyCondition3 = ta.crossunder(low, lowerGrid3) and strategy.opentrades < gridLevels
+
+// Entry conditions - Sell at upper grid levels  
+sellCondition1 = ta.crossover(high, upperGrid1) and strategy.opentrades < gridLevels
+sellCondition2 = ta.crossover(high, upperGrid2) and strategy.opentrades < gridLevels
+sellCondition3 = ta.crossover(high, upperGrid3) and strategy.opentrades < gridLevels
+
+// Execute grid entries
+if buyCondition1
+    strategy.entry("GridBuy1", strategy.long, comment="GRID_BUY_L1")
+if buyCondition2
+    strategy.entry("GridBuy2", strategy.long, comment="GRID_BUY_L2")
+if buyCondition3
+    strategy.entry("GridBuy3", strategy.long, comment="GRID_BUY_L3")
+
+if sellCondition1
+    strategy.entry("GridSell1", strategy.short, comment="GRID_SELL_L1")
+if sellCondition2
+    strategy.entry("GridSell2", strategy.short, comment="GRID_SELL_L2")
+if sellCondition3
+    strategy.entry("GridSell3", strategy.short, comment="GRID_SELL_L3")
+
+// Basket Take Profit - Close all when profit target reached
+if useBasketTP and strategy.openprofit >= basketTPAmount
+    strategy.close_all(comment="BASKET_TP")
+    basePrice := close
+
+// Individual position management with SL/TP
+for i = 0 to strategy.opentrades - 1
+    entryPrice = strategy.opentrades.entry_price(i)
+    isLong = strategy.opentrades.size(i) > 0
+    
+    tpPrice = isLong ? entryPrice * (1 + takeProfitPct / 100) : entryPrice * (1 - takeProfitPct / 100)
+    slPrice = isLong ? entryPrice * (1 - stopLossPct / 100) : entryPrice * (1 + stopLossPct / 100)
+
+// Plot grid levels
+plot(basePrice, "Base Price", color=color.white, linewidth=2)
+plot(upperGrid1, "Upper Grid 1", color=color.green, style=plot.style_circles)
+plot(upperGrid2, "Upper Grid 2", color=color.green, style=plot.style_circles)
+plot(upperGrid3, "Upper Grid 3", color=color.green, style=plot.style_circles)
+plot(lowerGrid1, "Lower Grid 1", color=color.red, style=plot.style_circles)
+plot(lowerGrid2, "Lower Grid 2", color=color.red, style=plot.style_circles)
+plot(lowerGrid3, "Lower Grid 3", color=color.red, style=plot.style_circles)
+
+// Display info
+var table infoTable = table.new(position.top_right, 2, 5)
+if barstate.islast
+    table.cell(infoTable, 0, 0, "Grid Size", text_color=color.white)
+    table.cell(infoTable, 1, 0, str.tostring(dynamicGridSize, "#.##") + "%", text_color=color.yellow)
+    table.cell(infoTable, 0, 1, "Open Trades", text_color=color.white)
+    table.cell(infoTable, 1, 1, str.tostring(strategy.opentrades), text_color=color.yellow)
+    table.cell(infoTable, 0, 2, "Open Profit", text_color=color.white)
+    table.cell(infoTable, 1, 2, "$" + str.tostring(strategy.openprofit, "#.##"), text_color=strategy.openprofit >= 0 ? color.green : color.red)
+
+// ============================================
+// ALERT MESSAGE FORMAT FOR WEBHOOK
+// ============================================
+// Use this JSON in TradingView Alert Message:
+// {
+//   "secret": "{{strategy.order.comment}}",
+//   "strategy_name": "Grid Trading Strategy",
+//   "action": "{{strategy.order.action}}",
+//   "symbol": "{{ticker}}",
+//   "side": "{{strategy.order.action}}",
+//   "quantity": "{{strategy.order.contracts}}",
+//   "price": "{{close}}",
+//   "order_type": "MARKET",
+//   "account_id": "",
+//   "comment": "{{strategy.order.comment}}"
+// }

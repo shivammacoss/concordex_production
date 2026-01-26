@@ -1,0 +1,134 @@
+//@version=5
+strategy("Scalping Strategy with Alerts", overlay=true, pyramiding=1, default_qty_type=strategy.fixed, default_qty_value=1)
+
+// ============================================
+// SCALPING STRATEGY FOR PAPER TRADING
+// Fast entries/exits with webhook alerts
+// Compatible with TradingView Alerts + Webhooks
+// ============================================
+
+// Scalping Parameters
+scalpMode = input.string("Conservative", "Scalp Mode", options=["Aggressive", "Conservative"])
+lotSize = input.float(0.01, "Lot Size", minval=0.01, step=0.01)
+
+// Indicator Settings
+emaLength = input.int(20, "EMA Length", minval=1)
+rsiLength = input.int(7, "RSI Length", minval=1)
+bbLength = input.int(20, "Bollinger Bands Length", minval=1)
+bbMult = input.float(2.0, "Bollinger Bands Multiplier", minval=0.5, maxval=5.0)
+
+// Exit Settings
+takeProfitPips = input.float(10, "Take Profit (pips)", minval=1)
+stopLossPips = input.float(5, "Stop Loss (pips)", minval=1)
+useTrailingStop = input.bool(true, "Use Trailing Stop")
+trailingPips = input.float(3, "Trailing Stop (pips)", minval=1)
+
+// Session Filter
+useSessionFilter = input.bool(true, "Use Session Filter")
+sessionStart = input.int(8, "Session Start (Hour UTC)", minval=0, maxval=23)
+sessionEnd = input.int(17, "Session End (Hour UTC)", minval=0, maxval=23)
+
+// Calculate pip value (for forex pairs)
+pipValue = syminfo.mintick * 10
+
+// Indicators
+ema = ta.ema(close, emaLength)
+rsi = ta.rsi(close, rsiLength)
+[bbMiddle, bbUpper, bbLower] = ta.bb(close, bbLength, bbMult)
+
+// Momentum
+momentum = close - close[3]
+momentumUp = momentum > 0
+momentumDown = momentum < 0
+
+// Session check
+currentHour = hour(time, "UTC")
+inSession = not useSessionFilter or (currentHour >= sessionStart and currentHour < sessionEnd)
+
+// Entry Conditions
+longCondition = false
+shortCondition = false
+
+if scalpMode == "Aggressive"
+    longCondition := close > ema and rsi < 70 and close <= bbLower and momentumUp and inSession
+    shortCondition := close < ema and rsi > 30 and close >= bbUpper and momentumDown and inSession
+else
+    longCondition := close > ema and rsi > 50 and rsi < 70 and ta.crossover(close, bbLower) and inSession
+    shortCondition := close < ema and rsi < 50 and rsi > 30 and ta.crossunder(close, bbUpper) and inSession
+
+// Calculate SL/TP prices
+longTP = close + (takeProfitPips * pipValue)
+longSL = close - (stopLossPips * pipValue)
+shortTP = close - (takeProfitPips * pipValue)
+shortSL = close + (stopLossPips * pipValue)
+
+// Execute trades
+if longCondition and strategy.position_size == 0
+    strategy.entry("ScalpLong", strategy.long, qty=lotSize, comment="SCALP_BUY")
+    strategy.exit("ScalpLongExit", "ScalpLong", limit=longTP, stop=longSL, trail_points=useTrailingStop ? trailingPips * 10 : na, trail_offset=useTrailingStop ? trailingPips * 5 : na, comment="SCALP_EXIT")
+
+if shortCondition and strategy.position_size == 0
+    strategy.entry("ScalpShort", strategy.short, qty=lotSize, comment="SCALP_SELL")
+    strategy.exit("ScalpShortExit", "ScalpShort", limit=shortTP, stop=shortSL, trail_points=useTrailingStop ? trailingPips * 10 : na, trail_offset=useTrailingStop ? trailingPips * 5 : na, comment="SCALP_EXIT")
+
+// Quick exit on momentum reversal
+if strategy.position_size > 0 and momentumDown
+    strategy.close("ScalpLong", comment="MOMENTUM_EXIT")
+    
+if strategy.position_size < 0 and momentumUp
+    strategy.close("ScalpShort", comment="MOMENTUM_EXIT")
+
+// Plot indicators
+plot(ema, "EMA", color=color.yellow, linewidth=2)
+plot(bbUpper, "BB Upper", color=color.red)
+plot(bbMiddle, "BB Middle", color=color.gray)
+plot(bbLower, "BB Lower", color=color.green)
+
+// Entry signals
+plotshape(longCondition and strategy.position_size == 0, "Long Signal", shape.triangleup, location.belowbar, color.green, size=size.small)
+plotshape(shortCondition and strategy.position_size == 0, "Short Signal", shape.triangledown, location.abovebar, color.red, size=size.small)
+
+// Background color for session
+bgcolor(inSession ? color.new(color.blue, 95) : na)
+
+// Info table
+var table statsTable = table.new(position.bottom_right, 2, 6, bgcolor=color.new(color.black, 80))
+if barstate.islast
+    table.cell(statsTable, 0, 0, "Mode", text_color=color.gray, text_size=size.tiny)
+    table.cell(statsTable, 1, 0, scalpMode, text_color=color.yellow, text_size=size.tiny)
+    
+    table.cell(statsTable, 0, 1, "RSI", text_color=color.gray, text_size=size.tiny)
+    rsiColor = rsi > 70 ? color.red : rsi < 30 ? color.green : color.white
+    table.cell(statsTable, 1, 1, str.tostring(rsi, "#.#"), text_color=rsiColor, text_size=size.tiny)
+    
+    table.cell(statsTable, 0, 2, "Position", text_color=color.gray, text_size=size.tiny)
+    posText = strategy.position_size > 0 ? "LONG" : strategy.position_size < 0 ? "SHORT" : "FLAT"
+    posColor = strategy.position_size > 0 ? color.green : strategy.position_size < 0 ? color.red : color.gray
+    table.cell(statsTable, 1, 2, posText, text_color=posColor, text_size=size.tiny)
+    
+    table.cell(statsTable, 0, 3, "Session", text_color=color.gray, text_size=size.tiny)
+    table.cell(statsTable, 1, 3, inSession ? "ACTIVE" : "CLOSED", text_color=inSession ? color.green : color.red, text_size=size.tiny)
+    
+    table.cell(statsTable, 0, 4, "Win Rate", text_color=color.gray, text_size=size.tiny)
+    winRate = strategy.wintrades / math.max(strategy.closedtrades, 1) * 100
+    table.cell(statsTable, 1, 4, str.tostring(winRate, "#.#") + "%", text_color=winRate > 50 ? color.green : color.red, text_size=size.tiny)
+    
+    table.cell(statsTable, 0, 5, "Net Profit", text_color=color.gray, text_size=size.tiny)
+    table.cell(statsTable, 1, 5, "$" + str.tostring(strategy.netprofit, "#.##"), text_color=strategy.netprofit >= 0 ? color.green : color.red, text_size=size.tiny)
+
+// ============================================
+// WEBHOOK ALERT JSON FORMAT
+// ============================================
+// {
+//   "secret": "YOUR_WEBHOOK_SECRET",
+//   "strategy_name": "Scalping Strategy",
+//   "action": "{{strategy.order.action}}",
+//   "symbol": "{{ticker}}",
+//   "side": "{{strategy.order.action}}",
+//   "quantity": "{{strategy.order.contracts}}",
+//   "price": "{{close}}",
+//   "order_type": "MARKET",
+//   "take_profit": "{{plot("TP Level")}}",
+//   "stop_loss": "{{plot("SL Level")}}",
+//   "comment": "{{strategy.order.comment}}"
+// }

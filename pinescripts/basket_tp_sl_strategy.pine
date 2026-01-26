@@ -1,0 +1,157 @@
+//@version=5
+strategy("Basket TP/SL Strategy", overlay=true, pyramiding=5, default_qty_type=strategy.percent_of_equity, default_qty_value=10)
+
+// ============================================
+// BASKET TP/SL STRATEGY FOR PAPER TRADING
+// Uses strategy.openprofit for basket exit logic
+// Compatible with TradingView Alerts + Webhooks
+// ============================================
+
+// Entry Parameters
+emaFast = input.int(9, "Fast EMA", minval=1)
+emaSlow = input.int(21, "Slow EMA", minval=1)
+rsiPeriod = input.int(14, "RSI Period", minval=1)
+rsiOversold = input.int(30, "RSI Oversold", minval=1, maxval=50)
+rsiOverbought = input.int(70, "RSI Overbought", minval=50, maxval=99)
+
+// Pyramiding Settings
+maxPositions = input.int(5, "Max Positions", minval=1, maxval=20)
+addOnDip = input.float(1.0, "Add Position on Dip (%)", minval=0.1, maxval=10.0)
+
+// Basket Exit Settings
+basketTPAmount = input.float(200, "Basket Take Profit ($)", minval=1)
+basketSLAmount = input.float(-100, "Basket Stop Loss ($)", minval=-10000, maxval=-1)
+trailingActivation = input.float(150, "Trailing Activation ($)", minval=1)
+trailingStep = input.float(50, "Trailing Step ($)", minval=1)
+
+// Individual Trade Settings
+individualTP = input.float(3.0, "Individual TP (%)", minval=0.1)
+individualSL = input.float(2.0, "Individual SL (%)", minval=0.1)
+
+// Calculate indicators
+fastEMA = ta.ema(close, emaFast)
+slowEMA = ta.ema(close, emaSlow)
+rsi = ta.rsi(close, rsiPeriod)
+
+// Trend detection
+uptrend = fastEMA > slowEMA
+downtrend = fastEMA < slowEMA
+
+// Track highest profit for trailing
+var float highestProfit = 0.0
+var float trailingTPLevel = na
+
+// Update highest profit
+if strategy.openprofit > highestProfit
+    highestProfit := strategy.openprofit
+
+// Calculate trailing TP level
+if highestProfit >= trailingActivation
+    trailingTPLevel := highestProfit - trailingStep
+
+// Entry conditions
+longEntry = uptrend and rsi < rsiOversold and strategy.opentrades < maxPositions
+shortEntry = downtrend and rsi > rsiOverbought and strategy.opentrades < maxPositions
+
+// Pyramiding - Add on dips in existing direction
+var float lastEntryPrice = na
+dipBuy = strategy.position_size > 0 and close < lastEntryPrice * (1 - addOnDip / 100) and strategy.opentrades < maxPositions
+dipSell = strategy.position_size < 0 and close > lastEntryPrice * (1 + addOnDip / 100) and strategy.opentrades < maxPositions
+
+// Execute entries
+if longEntry
+    strategy.entry("Long", strategy.long, comment="BASKET_LONG_ENTRY")
+    lastEntryPrice := close
+
+if shortEntry
+    strategy.entry("Short", strategy.short, comment="BASKET_SHORT_ENTRY")
+    lastEntryPrice := close
+
+if dipBuy
+    strategy.entry("LongAdd", strategy.long, comment="BASKET_LONG_ADD")
+    lastEntryPrice := close
+
+if dipSell
+    strategy.entry("ShortAdd", strategy.short, comment="BASKET_SHORT_ADD")
+    lastEntryPrice := close
+
+// ============================================
+// BASKET EXIT LOGIC
+// ============================================
+
+// Basket Take Profit
+basketTPHit = strategy.openprofit >= basketTPAmount
+if basketTPHit
+    strategy.close_all(comment="BASKET_TP_HIT")
+    highestProfit := 0.0
+    trailingTPLevel := na
+
+// Basket Stop Loss
+basketSLHit = strategy.openprofit <= basketSLAmount
+if basketSLHit
+    strategy.close_all(comment="BASKET_SL_HIT")
+    highestProfit := 0.0
+    trailingTPLevel := na
+
+// Trailing Take Profit
+trailingTPHit = not na(trailingTPLevel) and strategy.openprofit <= trailingTPLevel
+if trailingTPHit
+    strategy.close_all(comment="BASKET_TRAILING_TP")
+    highestProfit := 0.0
+    trailingTPLevel := na
+
+// Reset tracking when no positions
+if strategy.opentrades == 0
+    highestProfit := 0.0
+    trailingTPLevel := na
+    lastEntryPrice := na
+
+// Plot indicators
+plot(fastEMA, "Fast EMA", color=color.green, linewidth=2)
+plot(slowEMA, "Slow EMA", color=color.red, linewidth=2)
+
+// Plot profit levels
+hline(0, "Break Even", color=color.gray, linestyle=hline.style_dashed)
+
+// Display panel
+var table infoPanel = table.new(position.top_right, 2, 7, bgcolor=color.new(color.black, 80))
+if barstate.islast
+    table.cell(infoPanel, 0, 0, "BASKET STATUS", text_color=color.white, text_size=size.small)
+    table.cell(infoPanel, 1, 0, "", text_color=color.white)
+    
+    table.cell(infoPanel, 0, 1, "Open Trades", text_color=color.gray, text_size=size.small)
+    table.cell(infoPanel, 1, 1, str.tostring(strategy.opentrades), text_color=color.yellow, text_size=size.small)
+    
+    table.cell(infoPanel, 0, 2, "Open Profit", text_color=color.gray, text_size=size.small)
+    profitColor = strategy.openprofit >= 0 ? color.green : color.red
+    table.cell(infoPanel, 1, 2, "$" + str.tostring(strategy.openprofit, "#.##"), text_color=profitColor, text_size=size.small)
+    
+    table.cell(infoPanel, 0, 3, "Basket TP", text_color=color.gray, text_size=size.small)
+    table.cell(infoPanel, 1, 3, "$" + str.tostring(basketTPAmount), text_color=color.green, text_size=size.small)
+    
+    table.cell(infoPanel, 0, 4, "Basket SL", text_color=color.gray, text_size=size.small)
+    table.cell(infoPanel, 1, 4, "$" + str.tostring(basketSLAmount), text_color=color.red, text_size=size.small)
+    
+    table.cell(infoPanel, 0, 5, "Highest Profit", text_color=color.gray, text_size=size.small)
+    table.cell(infoPanel, 1, 5, "$" + str.tostring(highestProfit, "#.##"), text_color=color.blue, text_size=size.small)
+    
+    table.cell(infoPanel, 0, 6, "Trail Level", text_color=color.gray, text_size=size.small)
+    trailText = na(trailingTPLevel) ? "Inactive" : "$" + str.tostring(trailingTPLevel, "#.##")
+    table.cell(infoPanel, 1, 6, trailText, text_color=color.orange, text_size=size.small)
+
+// ============================================
+// WEBHOOK ALERT JSON FORMAT
+// ============================================
+// {
+//   "secret": "YOUR_WEBHOOK_SECRET",
+//   "strategy_name": "Basket TP/SL Strategy",
+//   "action": "{{strategy.order.action}}",
+//   "symbol": "{{ticker}}",
+//   "side": "{{strategy.order.action}}",
+//   "quantity": "{{strategy.order.contracts}}",
+//   "price": "{{close}}",
+//   "order_type": "MARKET",
+//   "comment": "{{strategy.order.comment}}",
+//   "position_size": "{{strategy.position_size}}",
+//   "open_profit": "{{strategy.openprofit}}"
+// }
