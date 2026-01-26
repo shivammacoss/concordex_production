@@ -15,24 +15,47 @@
 
 import crypto from 'crypto'
 import dotenv from 'dotenv'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
 // Load .env file explicitly to ensure env vars are available
 dotenv.config()
 
-// LP API Configuration from environment (mutable for dynamic updates)
-let LP_API_URL = process.env.LP_API_URL || 'http://localhost:3001'
-let LP_API_KEY = process.env.LP_API_KEY || ''
-let LP_API_SECRET = process.env.LP_API_SECRET || ''
+// Get directory path for ES modules
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// LP Settings file path
+const LP_SETTINGS_FILE = path.join(__dirname, '..', 'config', 'lp-settings.json')
+
+// Function to get LP settings from file
+const getLpSettingsFromFile = () => {
+  try {
+    if (fs.existsSync(LP_SETTINGS_FILE)) {
+      const data = fs.readFileSync(LP_SETTINGS_FILE, 'utf8')
+      return JSON.parse(data)
+    }
+  } catch (error) {
+    console.warn('[LPIntegration] Could not read LP settings file:', error.message)
+  }
+  return null
+}
+
+// Load settings from file first, then fallback to env vars
+const fileSettings = getLpSettingsFromFile()
+
+// LP API Configuration (mutable for dynamic updates)
+let LP_API_URL = fileSettings?.lpApiUrl || process.env.LP_API_URL || 'http://localhost:3001'
+let LP_API_KEY = fileSettings?.lpApiKey || process.env.LP_API_KEY || ''
+let LP_API_SECRET = fileSettings?.lpApiSecret || process.env.LP_API_SECRET || ''
 
 // Log configuration status on module load
 if (LP_API_KEY && LP_API_SECRET) {
-  console.log(`[LPIntegration] ✓ Configured - URL: ${LP_API_URL}, API Key: ${LP_API_KEY.substring(0, 10)}...`)
+  const source = fileSettings?.lpApiKey ? 'settings file' : '.env'
+  console.log(`[LPIntegration] ✓ Configured from ${source} - URL: ${LP_API_URL}, API Key: ${LP_API_KEY.substring(0, 10)}...`)
 } else {
-  console.warn(`[LPIntegration] ✗ NOT CONFIGURED - Missing LP_API_KEY or LP_API_SECRET in .env`)
-  console.warn(`[LPIntegration] Add these to your .env file:`)
-  console.warn(`  LP_API_URL=http://localhost:3001`)
-  console.warn(`  LP_API_KEY=lpk_your_api_key`)
-  console.warn(`  LP_API_SECRET=your_api_secret`)
+  console.warn(`[LPIntegration] ✗ NOT CONFIGURED - Configure LP settings in Book Management or .env`)
 }
 
 /**
