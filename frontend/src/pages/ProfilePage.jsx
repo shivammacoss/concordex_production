@@ -291,7 +291,7 @@ const ProfilePage = () => {
           onMouseLeave={() => setSidebarExpanded(false)}
         >
           <div className="p-4 flex items-center justify-center">
-            <img src="/src/assets/Concorddex.png" alt="Concorddex" className="w-8 h-8 rounded object-cover" />
+            <img src="/src/assets/concorddex.png" alt="Concorddex" className="w-8 h-8 rounded object-cover" />
           </div>
           <nav className="flex-1 px-2">
             {menuItems.map((item) => (
@@ -505,133 +505,137 @@ const ProfilePage = () => {
             </div>
 
             {/* Bank Details Section */}
-            <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-6 border mt-6`}>
-              <h3 className={`font-semibold mb-6 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                <Building2 size={18} /> Bank Details (For Withdrawals)
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="text-gray-400 text-sm mb-2 block">Bank Name</label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      value={profile.bankDetails?.bankName || ''}
-                      onChange={(e) => setProfile({
-                        ...profile, 
-                        bankDetails: {...profile.bankDetails, bankName: e.target.value}
-                      })}
-                      placeholder="e.g., HDFC Bank"
-                      className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
-                    />
-                  ) : (
-                    <p className="text-white">{profile.bankDetails?.bankName || '-'}</p>
-                  )}
-                </div>
+            {false && (
+              <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-6 border mt-6`}>
+                <h3 className={`font-semibold mb-6 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  <Building2 size={18} /> Bank Details (For Withdrawals)
+                </h3>
+                
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-gray-400 text-sm mb-2 block">Bank Name</label>
+                    {editing ? (
+                      <input
+                        type="text"
+                        value={profile.bankDetails?.bankName || ''}
+                        onChange={(e) => setProfile({
+                          ...profile, 
+                          bankDetails: {...profile.bankDetails, bankName: e.target.value}
+                        })}
+                        placeholder="e.g., HDFC Bank"
+                        className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                      />
+                    ) : (
+                      <p className="text-white">{profile.bankDetails?.bankName || '-'}</p>
+                    )}
+                  </div>
 
-                <div>
-                  <label className="text-gray-400 text-sm mb-2 block">Account Holder Name</label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      value={profile.bankDetails?.accountHolderName || ''}
-                      onChange={(e) => setProfile({
-                        ...profile, 
-                        bankDetails: {...profile.bankDetails, accountHolderName: e.target.value}
-                      })}
-                      placeholder="Name as per bank account"
-                      className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
-                    />
-                  ) : (
-                    <p className="text-white">{profile.bankDetails?.accountHolderName || '-'}</p>
-                  )}
-                </div>
+                  <div>
+                    <label className="text-gray-400 text-sm mb-2 block">Account Holder Name</label>
+                    {editing ? (
+                      <input
+                        type="text"
+                        value={profile.bankDetails?.accountHolderName || ''}
+                        onChange={(e) => setProfile({
+                          ...profile, 
+                          bankDetails: {...profile.bankDetails, accountHolderName: e.target.value}
+                        })}
+                        placeholder="Name as per bank account"
+                        className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                      />
+                    ) : (
+                      <p className="text-white">{profile.bankDetails?.accountHolderName || '-'}</p>
+                    )}
+                  </div>
 
-                <div>
-                  <label className="text-gray-400 text-sm mb-2 block">Account Number</label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      value={profile.bankDetails?.accountNumber || ''}
-                      onChange={(e) => setProfile({
-                        ...profile, 
-                        bankDetails: {...profile.bankDetails, accountNumber: e.target.value}
-                      })}
-                      placeholder="Enter account number"
-                      className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
-                    />
-                  ) : (
-                    <p className="text-white">{profile.bankDetails?.accountNumber || '-'}</p>
-                  )}
-                </div>
+                  <div>
+                    <label className="text-gray-400 text-sm mb-2 block">Account Number</label>
+                    {editing ? (
+                      <input
+                        type="text"
+                        value={profile.bankDetails?.accountNumber || ''}
+                        onChange={(e) => setProfile({
+                          ...profile, 
+                          bankDetails: {...profile.bankDetails, accountNumber: e.target.value}
+                        })}
+                        placeholder="Enter account number"
+                        className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                      />
+                    ) : (
+                      <p className="text-white">{profile.bankDetails?.accountNumber || '-'}</p>
+                    )}
+                  </div>
 
-                <div>
-                  <label className="text-gray-400 text-sm mb-2 block">IFSC Code</label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      value={profile.bankDetails?.ifscCode || ''}
-                      onChange={(e) => setProfile({
-                        ...profile, 
-                        bankDetails: {...profile.bankDetails, ifscCode: e.target.value.toUpperCase()}
-                      })}
-                      placeholder="e.g., HDFC0001234"
-                      className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white uppercase"
-                    />
-                  ) : (
-                    <p className="text-white">{profile.bankDetails?.ifscCode || '-'}</p>
-                  )}
-                </div>
+                  <div>
+                    <label className="text-gray-400 text-sm mb-2 block">IFSC Code</label>
+                    {editing ? (
+                      <input
+                        type="text"
+                        value={profile.bankDetails?.ifscCode || ''}
+                        onChange={(e) => setProfile({
+                          ...profile, 
+                          bankDetails: {...profile.bankDetails, ifscCode: e.target.value.toUpperCase()}
+                        })}
+                        placeholder="e.g., HDFC0001234"
+                        className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white uppercase"
+                      />
+                    ) : (
+                      <p className="text-white">{profile.bankDetails?.ifscCode || '-'}</p>
+                    )}
+                  </div>
 
-                <div className="col-span-2">
-                  <label className="text-gray-400 text-sm mb-2 block">Branch Name</label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      value={profile.bankDetails?.branchName || ''}
-                      onChange={(e) => setProfile({
-                        ...profile, 
-                        bankDetails: {...profile.bankDetails, branchName: e.target.value}
-                      })}
-                      placeholder="e.g., Mumbai Main Branch"
-                      className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
-                    />
-                  ) : (
-                    <p className="text-white">{profile.bankDetails?.branchName || '-'}</p>
-                  )}
+                  <div className="col-span-2">
+                    <label className="text-gray-400 text-sm mb-2 block">Branch Name</label>
+                    {editing ? (
+                      <input
+                        type="text"
+                        value={profile.bankDetails?.branchName || ''}
+                        onChange={(e) => setProfile({
+                          ...profile, 
+                          bankDetails: {...profile.bankDetails, branchName: e.target.value}
+                        })}
+                        placeholder="e.g., Mumbai Main Branch"
+                        className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                      />
+                    ) : (
+                      <p className="text-white">{profile.bankDetails?.branchName || '-'}</p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* UPI Section */}
-            <div className="bg-dark-800 rounded-xl p-6 border border-gray-800 mt-6">
-              <h3 className="text-white font-semibold mb-6 flex items-center gap-2">
-                <Smartphone size={18} /> UPI Details
-              </h3>
-              
-              <div>
-                <label className="text-gray-400 text-sm mb-2 block">UPI ID</label>
-                {editing ? (
-                  <input
-                    type="text"
-                    value={profile.upiId || ''}
-                    onChange={(e) => setProfile({...profile, upiId: e.target.value})}
-                    placeholder="e.g., yourname@upi"
-                    className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
-                  />
-                ) : (
-                  <p className="text-white">{profile.upiId || '-'}</p>
+            {false && (
+              <div className="bg-dark-800 rounded-xl p-6 border border-gray-800 mt-6">
+                <h3 className="text-white font-semibold mb-6 flex items-center gap-2">
+                  <Smartphone size={18} /> UPI Details
+                </h3>
+                
+                <div>
+                  <label className="text-gray-400 text-sm mb-2 block">UPI ID</label>
+                  {editing ? (
+                    <input
+                      type="text"
+                      value={profile.upiId || ''}
+                      onChange={(e) => setProfile({...profile, upiId: e.target.value})}
+                      placeholder="e.g., yourname@upi"
+                      className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                    />
+                  ) : (
+                    <p className="text-white">{profile.upiId || '-'}</p>
+                  )}
+                </div>
+
+                {!editing && (!profile.bankDetails?.accountNumber && !profile.upiId) && (
+                  <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <p className="text-yellow-500 text-sm">
+                      ⚠️ Please add your bank details or UPI ID to receive withdrawals. Click "Edit Profile" to add.
+                    </p>
+                  </div>
                 )}
               </div>
-
-              {!editing && (!profile.bankDetails?.accountNumber && !profile.upiId) && (
-                <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                  <p className="text-yellow-500 text-sm">
-                    ⚠️ Please add your bank details or UPI ID to receive withdrawals. Click "Edit Profile" to add.
-                  </p>
-                </div>
-              )}
-            </div>
+            )}
 
             {/* Withdrawal Accounts Section */}
             <div className="bg-dark-800 rounded-xl p-6 border border-gray-800 mt-6">

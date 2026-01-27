@@ -212,7 +212,11 @@ app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI)
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/concorddex_trading'
+if (!process.env.MONGODB_URI) {
+  console.warn('[MongoDB] MONGODB_URI is not set. Falling back to local mongodb://localhost:27017/concorddex_trading')
+}
+mongoose.connect(MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('MongoDB connection error:', err))
 

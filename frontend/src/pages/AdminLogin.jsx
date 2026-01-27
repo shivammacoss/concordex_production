@@ -4,6 +4,7 @@ import { X, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 
 const AdminLogin = () => {
   const navigate = useNavigate()
+  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000'
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -23,7 +24,7 @@ const AdminLogin = () => {
     setError('')
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin-mgmt/login`, {
+      const response = await fetch(`${apiBaseUrl}/api/admin-mgmt/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

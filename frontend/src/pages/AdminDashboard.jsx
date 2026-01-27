@@ -97,9 +97,7 @@ const AdminDashboard = () => {
       >
         {/* Logo */}
         <div className="p-4 flex items-center justify-center gap-2">
-          <div className="w-8 h-8 bg-red-500 rounded flex items-center justify-center">
-            <span className="text-white font-bold text-sm">A</span>
-          </div>
+          <img src="/src/assets/concorddex.png" alt="Concorddex" className="w-8 h-8 rounded object-cover" />
           {sidebarExpanded && <span className="text-white font-semibold">Admin</span>}
         </div>
 

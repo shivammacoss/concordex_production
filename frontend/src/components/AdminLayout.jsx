@@ -101,9 +101,7 @@ const AdminLayout = ({ children, title, subtitle }) => {
         {/* Logo */}
         <div className="p-4 flex items-center justify-between border-b border-gray-800">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-red-500 rounded flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold text-sm">C</span>
-            </div>
+            <img src="/src/assets/concorddex.png" alt="Concorddex" className="w-8 h-8 rounded object-cover flex-shrink-0" />
             {sidebarExpanded && <span className="text-white font-semibold">Concorddex Admin</span>}
           </div>
           <button 
@@ -111,7 +109,7 @@ const AdminLayout = ({ children, title, subtitle }) => {
             className="hidden lg:block p-1 hover:bg-dark-700 rounded transition-colors"
           >
             <Menu size={18} className="text-gray-400" />
-          </button>
+          </button> 
           <button 
             onClick={() => setMobileMenuOpen(false)}
             className="lg:hidden p-1 hover:bg-dark-700 rounded transition-colors"

@@ -43,6 +43,9 @@ const getLpSettings = () => {
 // Get WebSocket URL from LP settings or fallback to env/default
 const getCorecenWsUrl = () => {
   const lpSettings = getLpSettings()
+  if (lpSettings?.corecenWsUrl) {
+    return lpSettings.corecenWsUrl
+  }
   if (lpSettings?.wsUrl) {
     return lpSettings.wsUrl
   }

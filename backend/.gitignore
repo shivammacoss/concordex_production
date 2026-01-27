@@ -33,3 +33,7 @@ tmp/
 temp/
 
 concordex_new/backend/config/lp-settings.json
+
+backend/config/lp-settings.json
+
+backend/uploads/

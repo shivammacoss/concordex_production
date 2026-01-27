@@ -370,7 +370,8 @@ router.put('/lp-settings', async (req, res) => {
       lpApiKey: lpApiKey || '',
       lpApiSecret: lpApiSecret || '',
       lpApiUrl: lpApiUrl || 'http://localhost:3001',
-      corecenWsUrl: corecenWsUrl || 'http://localhost:3001'
+      corecenWsUrl: corecenWsUrl || 'http://localhost:3001',
+      wsUrl: corecenWsUrl || 'http://localhost:3001'
     }
     
     const saved = saveLpSettingsToFile(settings)
