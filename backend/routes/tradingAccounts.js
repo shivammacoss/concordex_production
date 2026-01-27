@@ -3,7 +3,6 @@ import TradingAccount from '../models/TradingAccount.js'
 import AccountType from '../models/AccountType.js'
 import Wallet from '../models/Wallet.js'
 import Transaction from '../models/Transaction.js'
-import bcrypt from 'bcryptjs'
 
 const router = express.Router()
 
@@ -40,15 +39,9 @@ router.get('/all', async (req, res) => {
 // POST /api/trading-accounts - Create trading account
 router.post('/', async (req, res) => {
   try {
-    const { userId, accountTypeId, pin } = req.body
+    const { userId, accountTypeId } = req.body
     
-    console.log('[Create Account] Request:', { userId, accountTypeId, pin: pin ? '****' : 'missing' })
-
-    // Validate PIN (4 digits)
-    if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-      console.log('[Create Account] PIN validation failed')
-      return res.status(400).json({ message: 'PIN must be exactly 4 digits' })
-    }
+    console.log('[Create Account] Request:', { userId, accountTypeId })
 
     // Get account type
     const accountType = await AccountType.findById(accountTypeId)
@@ -84,7 +77,6 @@ router.post('/', async (req, res) => {
       userId,
       accountTypeId,
       accountId,
-      pin,
       balance: initialBalance,
       credit: accountType.isDemo ? initialBalance : 0, // Demo balance is non-refundable (credit)
       leverage: leverageStr,
@@ -129,49 +121,7 @@ router.post('/', async (req, res) => {
   }
 })
 
-// POST /api/trading-accounts/:id/verify-pin - Verify PIN
-router.post('/:id/verify-pin', async (req, res) => {
-  try {
-    const { pin } = req.body
-    const account = await TradingAccount.findById(req.params.id)
-    if (!account) {
-      return res.status(404).json({ message: 'Account not found' })
-    }
-    const isValid = await account.verifyPin(pin)
-    res.json({ valid: isValid })
-  } catch (error) {
-    res.status(500).json({ message: 'Error verifying PIN', error: error.message })
-  }
-})
-
-// PUT /api/trading-accounts/:id/change-pin - Change PIN
-router.put('/:id/change-pin', async (req, res) => {
-  try {
-    const { currentPin, newPin } = req.body
-    const account = await TradingAccount.findById(req.params.id)
-    if (!account) {
-      return res.status(404).json({ message: 'Account not found' })
-    }
-
-    // Verify current PIN
-    const isValid = await account.verifyPin(currentPin)
-    if (!isValid) {
-      return res.status(400).json({ message: 'Current PIN is incorrect' })
-    }
-
-    // Validate new PIN
-    if (!newPin || newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
-      return res.status(400).json({ message: 'New PIN must be exactly 4 digits' })
-    }
-
-    account.pin = newPin
-    await account.save()
-
-    res.json({ message: 'PIN changed successfully' })
-  } catch (error) {
-    res.status(500).json({ message: 'Error changing PIN', error: error.message })
-  }
-})
+// PIN routes removed - no longer used
 
 // PUT /api/trading-accounts/:id/admin-update - Admin update account
 router.put('/:id/admin-update', async (req, res) => {
@@ -191,32 +141,10 @@ router.put('/:id/admin-update', async (req, res) => {
   }
 })
 
-// PUT /api/trading-accounts/:id/reset-pin - Admin reset PIN
-router.put('/:id/reset-pin', async (req, res) => {
-  try {
-    const { newPin } = req.body
-    if (!newPin || newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
-      return res.status(400).json({ message: 'PIN must be exactly 4 digits' })
-    }
-
-    const account = await TradingAccount.findById(req.params.id)
-    if (!account) {
-      return res.status(404).json({ message: 'Account not found' })
-    }
-
-    account.pin = newPin
-    await account.save()
-
-    res.json({ message: 'PIN reset successfully' })
-  } catch (error) {
-    res.status(500).json({ message: 'Error resetting PIN', error: error.message })
-  }
-})
-
 // POST /api/trading-accounts/:id/transfer - Transfer funds between Main Wallet and Account Wallet
 router.post('/:id/transfer', async (req, res) => {
   try {
-    const { userId, amount, pin, direction, skipPinVerification } = req.body
+    const { userId, amount, direction } = req.body
 
     // Validate amount
     if (!amount || amount <= 0) {
@@ -227,17 +155,6 @@ router.post('/:id/transfer', async (req, res) => {
     const account = await TradingAccount.findById(req.params.id)
     if (!account) {
       return res.status(404).json({ message: 'Account not found' })
-    }
-
-    // Verify PIN only if not skipped
-    if (!skipPinVerification) {
-      if (!pin || pin.length !== 4) {
-        return res.status(400).json({ message: 'Invalid PIN' })
-      }
-      const isValidPin = await account.verifyPin(pin)
-      if (!isValidPin) {
-        return res.status(400).json({ message: 'Incorrect PIN' })
-      }
     }
 
     // Check account status
@@ -321,7 +238,7 @@ router.post('/:id/transfer', async (req, res) => {
 // POST /api/trading-accounts/account-transfer - Transfer between trading accounts
 router.post('/account-transfer', async (req, res) => {
   try {
-    const { userId, fromAccountId, toAccountId, amount, pin, skipPinVerification } = req.body
+    const { userId, fromAccountId, toAccountId, amount } = req.body
 
     if (!fromAccountId || !toAccountId) {
       return res.status(400).json({ message: 'Both source and target accounts are required' })
@@ -344,14 +261,6 @@ router.post('/account-transfer', async (req, res) => {
     // Verify ownership
     if (fromAccount.userId.toString() !== userId) {
       return res.status(403).json({ message: 'Unauthorized access to source account' })
-    }
-
-    // Verify PIN if required
-    if (!skipPinVerification) {
-      const isPinValid = await bcrypt.compare(pin, fromAccount.pin)
-      if (!isPinValid) {
-        return res.status(401).json({ message: 'Invalid PIN' })
-      }
     }
 
     // Check source account status and balance

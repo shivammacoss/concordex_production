@@ -254,8 +254,7 @@ const Account = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user._id,
-          accountTypeId: selectedType._id,
-          pin: '0000' // Default PIN - not used anymore
+          accountTypeId: selectedType._id
         })
       })
       const data = await res.json()
@@ -426,8 +425,7 @@ const Account = () => {
         body: JSON.stringify({
           userId: user._id,
           amount: parseFloat(transferAmount),
-          direction: 'deposit',
-          skipPinVerification: true
+          direction: 'deposit'
         })
       })
       const data = await res.json()
@@ -467,8 +465,7 @@ const Account = () => {
         body: JSON.stringify({
           userId: user._id,
           amount: parseFloat(transferAmount),
-          direction: 'withdraw',
-          skipPinVerification: true
+          direction: 'withdraw'
         })
       })
       const data = await res.json()
@@ -513,8 +510,7 @@ const Account = () => {
           userId: user._id,
           fromAccountId: selectedAccount._id,
           toAccountId: targetAccount._id,
-          amount: parseFloat(transferAmount),
-          skipPinVerification: true
+          amount: parseFloat(transferAmount)
         })
       })
       const data = await res.json()

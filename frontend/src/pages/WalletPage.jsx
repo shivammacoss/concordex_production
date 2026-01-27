@@ -30,7 +30,10 @@ import {
   Image,
   BookOpen,
   Sun,
-  Moon
+  Moon,
+  Bitcoin,
+  ExternalLink,
+  Loader2
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { API_URL } from '../config/api'
@@ -62,8 +65,14 @@ const WalletPage = () => {
   const [userBankAccounts, setUserBankAccounts] = useState([])
   const [selectedBankAccount, setSelectedBankAccount] = useState(null)
   const fileInputRef = useRef(null)
-
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  
+  // Crypto deposit states
+  const [depositMethod, setDepositMethod] = useState('fiat') // 'fiat' or 'crypto'
+  const [cryptoCurrencies, setCryptoCurrencies] = useState([])
+  const [selectedCrypto, setSelectedCrypto] = useState('USDT')
+  const [cryptoLoading, setCryptoLoading] = useState(false)
+  const [cryptoPayLink, setCryptoPayLink] = useState(null)
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'))
 
   const menuItems = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
@@ -120,6 +129,28 @@ const WalletPage = () => {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
+  // Fetch fresh user data from API on mount
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      const token = localStorage.getItem('token')
+      if (!token) return
+      
+      try {
+        const res = await fetch(`${API_URL}/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        const data = await res.json()
+        if (data.user) {
+          setUser(data.user)
+          localStorage.setItem('user', JSON.stringify(data.user))
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error)
+      }
+    }
+    fetchCurrentUser()
+  }, [])
+
   useEffect(() => {
     fetchChallengeStatus()
     if (user._id) {
@@ -152,6 +183,69 @@ const WalletPage = () => {
       }
     } catch (error) {
       console.error('Error fetching currencies:', error)
+    }
+  }
+
+  // Fetch supported crypto currencies from OxaPay
+  const fetchCryptoCurrencies = async () => {
+    try {
+      const res = await fetch(`${API_URL}/oxapay/currencies`)
+      const data = await res.json()
+      if (data.success) {
+        setCryptoCurrencies(data.currencies || [])
+      }
+    } catch (error) {
+      console.error('Error fetching crypto currencies:', error)
+      // Set default currencies if API fails
+      setCryptoCurrencies([
+        { code: 'USDT', name: 'Tether (USDT)', icon: '💵' },
+        { code: 'BTC', name: 'Bitcoin (BTC)', icon: '₿' },
+        { code: 'ETH', name: 'Ethereum (ETH)', icon: 'Ξ' }
+      ])
+    }
+  }
+
+  // Create crypto payment invoice
+  const handleCryptoDeposit = async () => {
+    if (!user?._id) {
+      setError('Please login to continue')
+      return
+    }
+    
+    if (!localAmount || parseFloat(localAmount) < 10) {
+      setError('Minimum deposit amount is $10')
+      return
+    }
+
+    setCryptoLoading(true)
+    setError('')
+
+    try {
+      console.log('Creating crypto invoice for user:', user._id)
+      const res = await fetch(`${API_URL}/oxapay/create-invoice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user._id,
+          amount: parseFloat(localAmount),
+          currency: selectedCrypto,
+          description: `Crypto deposit to Concorddex wallet`
+        })
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        setCryptoPayLink(data.data.payLink)
+        setSuccess('Payment invoice created! Click the button to complete payment.')
+      } else {
+        setError(data.message || 'Failed to create payment invoice')
+      }
+    } catch (error) {
+      console.error('Crypto deposit error:', error)
+      setError('Error creating payment invoice. Please try again.')
+    } finally {
+      setCryptoLoading(false)
     }
   }
 
@@ -617,9 +711,13 @@ const WalletPage = () => {
                 onClick={() => {
                   setShowDepositModal(false)
                   setAmount('')
+                  setLocalAmount('')
                   setTransactionRef('')
                   setSelectedPaymentMethod(null)
+                  setDepositMethod('fiat')
+                  setCryptoPayLink(null)
                   setError('')
+                  setSuccess('')
                 }}
                 className="text-gray-400 hover:text-white"
               >
@@ -627,65 +725,141 @@ const WalletPage = () => {
               </button>
             </div>
 
-            {/* Currency Selection */}
-            <div className="mb-4">
-              <label className="block text-gray-400 text-sm mb-2">Select Your Currency</label>
-              <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-32 sm:max-h-40 overflow-y-auto p-1">
+            {/* Deposit Method Selection */}
+            <div className="mb-6">
+              <label className="block text-gray-400 text-sm mb-3">Select Deposit Method</label>
+              <div className="grid grid-cols-2 gap-3">
                 <button
-                  onClick={() => setSelectedCurrency({ currency: 'USD', symbol: '$', rateToUSD: 1, markup: 0 })}
-                  className={`p-2 rounded-lg border transition-colors flex flex-col items-center gap-0.5 ${
-                    !selectedCurrency || selectedCurrency.currency === 'USD'
-                      ? 'border-accent-green bg-accent-green/10'
+                  onClick={() => { setDepositMethod('fiat'); setCryptoPayLink(null); setError(''); setSuccess(''); }}
+                  className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                    depositMethod === 'fiat'
+                      ? 'border-accent-green bg-accent-green/10 shadow-lg shadow-accent-green/20'
                       : 'border-gray-700 bg-dark-700 hover:border-gray-600'
                   }`}
                 >
-                  <span className="text-lg">$</span>
-                  <span className="text-white text-[10px]">USD</span>
+                  <Building size={28} className={depositMethod === 'fiat' ? 'text-accent-green' : 'text-gray-400'} />
+                  <span className={`font-medium ${depositMethod === 'fiat' ? 'text-white' : 'text-gray-400'}`}>Bank Transfer</span>
+                  <span className="text-xs text-gray-500">Fiat Currency</span>
                 </button>
-                {currencies.map((curr) => (
-                  <button
-                    key={curr._id}
-                    onClick={() => setSelectedCurrency(curr)}
-                    className={`p-2 rounded-lg border transition-colors flex flex-col items-center gap-0.5 ${
-                      selectedCurrency?.currency === curr.currency
-                        ? 'border-accent-green bg-accent-green/10'
-                        : 'border-gray-700 bg-dark-700 hover:border-gray-600'
-                    }`}
-                  >
-                    <span className="text-lg">{curr.symbol}</span>
-                    <span className="text-white text-[10px]">{curr.currency}</span>
-                  </button>
-                ))}
+                <button
+                  onClick={() => { setDepositMethod('crypto'); fetchCryptoCurrencies(); setCryptoPayLink(null); setError(''); setSuccess(''); }}
+                  className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                    depositMethod === 'crypto'
+                      ? 'border-orange-500 bg-orange-500/10 shadow-lg shadow-orange-500/20'
+                      : 'border-gray-700 bg-dark-700 hover:border-gray-600'
+                  }`}
+                >
+                  <Bitcoin size={28} className={depositMethod === 'crypto' ? 'text-orange-500' : 'text-gray-400'} />
+                  <span className={`font-medium ${depositMethod === 'crypto' ? 'text-white' : 'text-gray-400'}`}>Crypto</span>
+                  <span className="text-xs text-gray-500">BTC, ETH, USDT</span>
+                </button>
               </div>
-              {currencies.length === 0 && (
-                <p className="text-gray-500 text-xs mt-1">Only USD available. Admin can add more currencies.</p>
-              )}
             </div>
 
-            <div className="mb-4">
-              <label className="block text-gray-400 text-sm mb-2">
-                Amount {selectedCurrency ? `(${selectedCurrency.symbol} ${selectedCurrency.currency})` : '($ USD)'}
-              </label>
-              <input
-                type="number"
-                value={localAmount}
-                onChange={(e) => setLocalAmount(e.target.value)}
-                placeholder={`Enter amount in ${selectedCurrency?.currency || 'USD'}`}
-                className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-accent-green"
-              />
-              {selectedCurrency && selectedCurrency.currency !== 'USD' && localAmount && parseFloat(localAmount) > 0 && (
-                <div className="mt-2 p-3 bg-accent-green/10 rounded-lg border border-accent-green/30">
-                  <div className="text-center">
-                    <p className="text-gray-400 text-xs mb-1">You will receive</p>
-                    <p className="text-green-400 font-bold text-2xl">${calculateUSDAmount(parseFloat(localAmount), selectedCurrency).toFixed(2)} USD</p>
-                    <p className="text-gray-500 text-xs mt-2">
-                      Exchange Rate: 1 USD = {selectedCurrency.symbol}{(selectedCurrency.rateToUSD * (1 + (selectedCurrency.markup || 0) / 100)).toFixed(2)} {selectedCurrency.currency}
-                    </p>
+            {/* Crypto Deposit Section */}
+            {depositMethod === 'crypto' && (
+              <div className="space-y-4">
+                {/* Crypto Currency Selection */}
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Select Cryptocurrency</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(cryptoCurrencies.length > 0 ? cryptoCurrencies : [
+                      { code: 'USDT', name: 'Tether', icon: '💵' },
+                      { code: 'BTC', name: 'Bitcoin', icon: '₿' },
+                      { code: 'ETH', name: 'Ethereum', icon: 'Ξ' }
+                    ]).map((crypto) => (
+                      <button
+                        key={crypto.code}
+                        onClick={() => setSelectedCrypto(crypto.code)}
+                        className={`p-3 rounded-lg border transition-all flex flex-col items-center gap-1 ${
+                          selectedCrypto === crypto.code
+                            ? 'border-orange-500 bg-orange-500/10'
+                            : 'border-gray-700 bg-dark-700 hover:border-gray-600'
+                        }`}
+                      >
+                        <span className="text-xl">{crypto.icon}</span>
+                        <span className="text-white text-sm font-medium">{crypto.code}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
-              )}
-            </div>
 
+                {/* Amount Input */}
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Amount (USD)</label>
+                  <input
+                    type="number"
+                    value={localAmount}
+                    onChange={(e) => setLocalAmount(e.target.value)}
+                    placeholder="Enter amount (min $10)"
+                    min="10"
+                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+                  />
+                  <p className="text-gray-500 text-xs mt-1">Minimum deposit: $10</p>
+                </div>
+
+                {/* Success - Payment Link */}
+                {cryptoPayLink && (
+                  <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Check size={20} className="text-green-500" />
+                      <span className="text-green-400 font-medium">Payment Invoice Created!</span>
+                    </div>
+                    <p className="text-gray-400 text-sm mb-4">
+                      Click the button below to complete your payment. Your wallet will be credited automatically once payment is confirmed.
+                    </p>
+                    <a
+                      href={cryptoPayLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+                    >
+                      <ExternalLink size={18} />
+                      Pay with {selectedCrypto}
+                    </a>
+                  </div>
+                )}
+
+                {/* Create Invoice Button */}
+                {!cryptoPayLink && (
+                  <button
+                    onClick={handleCryptoDeposit}
+                    disabled={cryptoLoading || !localAmount || parseFloat(localAmount) < 10}
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all"
+                  >
+                    {cryptoLoading ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Creating Invoice...
+                      </>
+                    ) : (
+                      <>
+                        <Bitcoin size={18} />
+                        Deposit with Crypto
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Fiat Deposit Section */}
+            {depositMethod === 'fiat' && (
+              <>
+                <div className="mb-4">
+                  <label className="block text-gray-400 text-sm mb-2">Amount ($ USD)</label>
+                  <input
+                    type="number"
+                    value={localAmount}
+                    onChange={(e) => setLocalAmount(e.target.value)}
+                    placeholder="Enter amount in USD"
+                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-accent-green"
+                  />
+                </div>
+              </>
+            )}
+
+            {false && (
             <div className="mb-4">
               <label className="block text-gray-400 text-sm mb-2">Payment Method</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
@@ -708,19 +882,15 @@ const WalletPage = () => {
                 <p className="text-gray-500 text-sm text-center py-4">No payment methods available</p>
               )}
             </div>
+            )}
 
-            {selectedPaymentMethod && (
+            {false && selectedPaymentMethod && (
               <div className="mb-4 p-4 bg-dark-700 rounded-lg">
                 {selectedPaymentMethod.type === 'Bank Transfer' && (
-                  <div className="space-y-2 text-sm">
-                    <p className="text-gray-400">Bank: <span className="text-white">{selectedPaymentMethod.bankName}</span></p>
-                    <p className="text-gray-400">Account: <span className="text-white">{selectedPaymentMethod.accountNumber}</span></p>
-                    <p className="text-gray-400">Name: <span className="text-white">{selectedPaymentMethod.accountHolderName}</span></p>
-                    <p className="text-gray-400">IFSC: <span className="text-white">{selectedPaymentMethod.ifscCode}</span></p>
-                  </div>
+                  <p className="text-gray-400 text-sm">Payment Method: <span className="text-white">Bank Transfer</span></p>
                 )}
                 {selectedPaymentMethod.type === 'UPI' && (
-                  <p className="text-gray-400">UPI ID: <span className="text-white">{selectedPaymentMethod.upiId}</span></p>
+                  <p className="text-gray-400 text-sm">Payment Method: <span className="text-white">UPI</span></p>
                 )}
                 {selectedPaymentMethod.type === 'QR Code' && selectedPaymentMethod.qrCodeImage && (
                   <img src={selectedPaymentMethod.qrCodeImage} alt="QR Code" className="mx-auto max-w-48" />
@@ -728,18 +898,24 @@ const WalletPage = () => {
               </div>
             )}
 
-            <div className="mb-4">
-              <label className="block text-gray-400 text-sm mb-2">Transaction Reference (Optional)</label>
-              <input
-                type="text"
-                value={transactionRef}
-                onChange={(e) => setTransactionRef(e.target.value)}
-                placeholder="Enter transaction ID or reference"
-                className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-accent-green"
-              />
-            </div>
+            {/* Fiat-only fields */}
+            {depositMethod === 'fiat' && (
+              <>
+                <div className="mb-4">
+                  <label className="block text-gray-400 text-sm mb-2">Transaction Reference (Optional)</label>
+                  <input
+                    type="text"
+                    value={transactionRef}
+                    onChange={(e) => setTransactionRef(e.target.value)}
+                    placeholder="Enter transaction ID or reference"
+                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-accent-green"
+                  />
+                </div>
+              </>
+            )}
 
-            {/* Screenshot Upload */}
+            {/* Screenshot Upload - Fiat only */}
+            {depositMethod === 'fiat' && (
             <div className="mb-6">
               <label className="block text-gray-400 text-sm mb-2">Payment Screenshot (Proof)</label>
               <input
@@ -778,9 +954,13 @@ const WalletPage = () => {
                 </button>
               )}
             </div>
+            )}
 
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+            {success && <p className="text-green-500 text-sm mb-4">{success}</p>}
 
+            {/* Fiat deposit buttons */}
+            {depositMethod === 'fiat' && (
             <div className="flex gap-3">
               <button
                 onClick={() => {
@@ -792,7 +972,10 @@ const WalletPage = () => {
                   setSelectedCurrency(null)
                   setScreenshot(null)
                   setScreenshotPreview(null)
+                  setDepositMethod('fiat')
+                  setCryptoPayLink(null)
                   setError('')
+                  setSuccess('')
                 }}
                 className="flex-1 bg-dark-700 text-white py-3 rounded-lg hover:bg-dark-600 transition-colors"
               >
@@ -812,6 +995,7 @@ const WalletPage = () => {
                 )}
               </button>
             </div>
+            )}
           </div>
         </div>
       )}

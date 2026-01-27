@@ -31,6 +31,7 @@ import bookManagementRoutes from './routes/bookManagement.js'
 import tradingviewWebhookRoutes from './routes/tradingviewWebhook.js'
 import algoStrategyRoutes from './routes/algoStrategy.js'
 import externalApiRoutes from './routes/externalApi.js'
+import oxapayRoutes from './routes/oxapay.js'
 import corecenSocketClient from './services/corecenSocketClient.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -246,6 +247,7 @@ app.use('/api/book', bookManagementRoutes)
 app.use('/api/tradingview', tradingviewWebhookRoutes)
 app.use('/api/algo-strategies', algoStrategyRoutes)
 app.use('/api/external', externalApiRoutes)
+app.use('/api/oxapay', oxapayRoutes)
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))

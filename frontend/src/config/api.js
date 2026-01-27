@@ -20,8 +20,18 @@ export const adminFetch = async (endpoint, options = {}) => {
     headers['Authorization'] = `Bearer ${token}`
   }
   
-  return fetch(`${API_URL}${endpoint}`, {
+  const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers
   })
+  
+  // Auto-redirect to login if unauthorized
+  if (response.status === 401) {
+    console.warn('adminFetch: 401 Unauthorized - redirecting to login')
+    localStorage.removeItem('adminToken')
+    localStorage.removeItem('adminUser')
+    window.location.href = '/admin'
+  }
+  
+  return response
 }
