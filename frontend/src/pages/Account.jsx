@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import concorddexLogo from '../assets/concorddex.png'
 import { 
   LayoutDashboard, 
   User,
@@ -568,7 +569,7 @@ const Account = () => {
           onMouseLeave={() => setSidebarExpanded(false)}
         >
           <div className="p-4 flex items-center justify-center shrink-0">
-            <img src="/src/assets/concorddex.png" alt="Concorddex" className="w-8 h-8 rounded object-cover" />
+            <img src={concorddexLogo} alt="Concorddex" className="w-8 h-8 rounded object-cover" />
           </div>
 
           <nav className="flex-1 px-2 overflow-y-auto">

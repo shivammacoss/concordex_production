@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import concorddexLogo from '../assets/concorddex.png'
 import { 
   LayoutDashboard, User, Wallet, Users, Copy, UserCircle, HelpCircle, FileText, LogOut,
   ChevronDown, ChevronRight, BookOpen, PlayCircle, DollarSign, TrendingUp, Shield, Settings, Trophy,
@@ -150,7 +151,7 @@ const InstructionsPage = () => {
           onMouseLeave={() => setSidebarExpanded(false)}
         >
           <div className="p-4 flex items-center justify-center">
-            <img src="/src/assets/Concorddex.png" alt="Concorddex" className="w-8 h-8 rounded object-cover" />
+            <img src={concorddexLogo} alt="Concorddex" className="w-8 h-8 rounded object-cover" />
           </div>
           <nav className="flex-1 px-2">
             {menuItems.map((item) => (

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import concorddexLogo from '../assets/concorddex.png'
 import { 
   LayoutDashboard, 
   Users,
@@ -101,7 +102,7 @@ const AdminLayout = ({ children, title, subtitle }) => {
         {/* Logo */}
         <div className="p-4 flex items-center justify-between border-b border-gray-800">
           <div className="flex items-center gap-2">
-            <img src="/src/assets/concorddex.png" alt="Concorddex" className="w-8 h-8 rounded object-cover flex-shrink-0" />
+            <img src={concorddexLogo} alt="Concorddex" className="w-8 h-8 rounded object-cover flex-shrink-0" />
             {sidebarExpanded && <span className="text-white font-semibold">Concorddex Admin</span>}
           </div>
           <button 
