@@ -32,6 +32,7 @@ const AdminBankSettings = () => {
     ifscCode: '',
     upiId: '',
     qrCodeImage: '',
+    paymentLink: '',
     isActive: true
   })
   
@@ -376,6 +377,7 @@ const AdminBankSettings = () => {
       ifscCode: method.ifscCode || '',
       upiId: method.upiId || '',
       qrCodeImage: method.qrCodeImage || '',
+      paymentLink: method.paymentLink || '',
       isActive: method.isActive
     })
     setShowAddModal(true)
@@ -390,6 +392,7 @@ const AdminBankSettings = () => {
       ifscCode: '',
       upiId: '',
       qrCodeImage: '',
+      paymentLink: '',
       isActive: true
     })
   }
@@ -728,6 +731,9 @@ const AdminBankSettings = () => {
                       )}
                       <div>
                         <p className="text-white font-medium">QR Code Payment</p>
+                        {qr.paymentLink && (
+                          <p className="text-gray-400 text-sm truncate max-w-[200px]">Link: {qr.paymentLink}</p>
+                        )}
                         <p className="text-gray-500 text-sm">Scan to pay</p>
                       </div>
                     </div>
@@ -1073,33 +1079,46 @@ const AdminBankSettings = () => {
 
               {/* QR Code Fields */}
               {form.type === 'QR Code' && (
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">QR Code Image</label>
-                  <div className="border-2 border-dashed border-gray-700 rounded-lg p-6 text-center">
-                    {form.qrCodeImage ? (
-                      <div className="space-y-3">
-                        <img src={form.qrCodeImage} alt="QR Preview" className="w-32 h-32 mx-auto rounded-lg" />
-                        <button
-                          onClick={() => setForm({ ...form, qrCodeImage: '' })}
-                          className="text-red-500 text-sm"
-                        >
-                          Remove Image
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="cursor-pointer">
-                        <Upload size={32} className="mx-auto text-gray-500 mb-2" />
-                        <p className="text-gray-400 text-sm">Click to upload QR code image</p>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="hidden"
-                        />
-                      </label>
-                    )}
+                <>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-2">QR Code Image</label>
+                    <div className="border-2 border-dashed border-gray-700 rounded-lg p-6 text-center">
+                      {form.qrCodeImage ? (
+                        <div className="space-y-3">
+                          <img src={form.qrCodeImage} alt="QR Preview" className="w-32 h-32 mx-auto rounded-lg" />
+                          <button
+                            onClick={() => setForm({ ...form, qrCodeImage: '' })}
+                            className="text-red-500 text-sm"
+                          >
+                            Remove Image
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="cursor-pointer">
+                          <Upload size={32} className="mx-auto text-gray-500 mb-2" />
+                          <p className="text-gray-400 text-sm">Click to upload QR code image</p>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
+                    </div>
                   </div>
-                </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-2">Payment Link</label>
+                    <input
+                      type="text"
+                      value={form.paymentLink}
+                      onChange={(e) => setForm({ ...form, paymentLink: e.target.value })}
+                      placeholder="Enter payment link (e.g., upi://pay?pa=...)"
+                      className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-orange-500"
+                    />
+                    <p className="text-gray-500 text-xs mt-1">Users can click this link to make payments</p>
+                  </div>
+                </>
               )}
 
               {/* Active Status */}

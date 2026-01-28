@@ -27,8 +27,13 @@ const BrandedLogin = () => {
   }, [])
 
   useEffect(() => {
+    // If slug is "admin", redirect to admin login page
+    if (slug === 'admin') {
+      navigate('/admin')
+      return
+    }
     fetchBrandInfo()
-  }, [slug])
+  }, [slug, navigate])
 
   const fetchBrandInfo = async () => {
     try {

@@ -27,6 +27,9 @@ const paymentMethodSchema = new mongoose.Schema({
   qrCodeImage: {
     type: String
   },
+  paymentLink: {
+    type: String
+  },
   // Common fields
   isActive: {
     type: Boolean,

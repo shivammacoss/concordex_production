@@ -250,6 +250,10 @@ const WalletPage = () => {
       setError('Please select a payment method')
       return
     }
+    if (!transactionRef || transactionRef.trim() === '') {
+      setError('Please enter your transaction reference')
+      return
+    }
 
     // Calculate USD amount from local currency
     const usdAmount = selectedCurrency && selectedCurrency.currency !== 'USD'
@@ -705,14 +709,45 @@ const WalletPage = () => {
                 <h4 className="text-white font-medium mb-3">Payment Details</h4>
                 
                 {/* QR Code Display */}
-                {selectedPaymentMethod.type === 'QR Code' && selectedPaymentMethod.qrCodeImage && (
+                {selectedPaymentMethod.type === 'QR Code' && (
                   <div className="text-center mb-4">
-                    <img 
-                      src={selectedPaymentMethod.qrCodeImage} 
-                      alt="Payment QR Code" 
-                      className="mx-auto max-w-48 rounded-lg border border-gray-600"
-                    />
-                    <p className="text-gray-400 text-sm mt-2">Scan QR code to pay</p>
+                    {selectedPaymentMethod.qrCodeImage && (
+                      <>
+                        <img 
+                          src={selectedPaymentMethod.qrCodeImage} 
+                          alt="Payment QR Code" 
+                          className="mx-auto max-w-48 rounded-lg border border-gray-600"
+                        />
+                        <p className="text-gray-400 text-sm mt-2">Scan QR code to pay</p>
+                      </>
+                    )}
+                    {selectedPaymentMethod.paymentLink && (
+                      <div className="mt-3 p-3 bg-dark-800 rounded-lg">
+                        <p className="text-gray-400 text-xs mb-1">Payment Link</p>
+                        <div className="flex items-center justify-center gap-2">
+                          <a 
+                            href={selectedPaymentMethod.paymentLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-accent-green font-medium hover:underline truncate max-w-[200px]"
+                          >
+                            Click to Pay
+                          </a>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(selectedPaymentMethod.paymentLink)
+                              setSuccess('Link copied to clipboard!')
+                              setTimeout(() => setSuccess(''), 2000)
+                            }}
+                            className="p-1 hover:bg-dark-600 rounded text-gray-400 hover:text-white"
+                            title="Copy link"
+                          >
+                            <Copy size={16} />
+                          </button>
+                        </div>
+                        <p className="text-gray-500 text-xs mt-1">Click the link or copy to make payment</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -813,14 +848,16 @@ const WalletPage = () => {
 
             {/* Transaction Reference */}
             <div className="mb-4">
-              <label className="block text-gray-400 text-sm mb-2">Transaction Reference (Optional)</label>
+              <label className="block text-gray-400 text-sm mb-2">Transaction Reference <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={transactionRef}
                 onChange={(e) => setTransactionRef(e.target.value)}
                 placeholder="Enter transaction ID or reference"
                 className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-accent-green"
+                required
               />
+              <p className="text-gray-500 text-xs mt-1">Required - Enter your payment transaction reference</p>
             </div>
 
             {/* Screenshot Upload */}

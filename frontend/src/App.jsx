@@ -69,6 +69,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Navigate to="/user/login" replace />} />
         <Route path="/signup" element={<Navigate to="/user/signup" replace />} />
+        <Route path="/user" element={<Navigate to="/user/login" replace />} />
         <Route path="/user/signup" element={<Signup />} />
         <Route path="/user/login" element={<Login />} />
         <Route path="/user/forgot-password" element={<ForgotPassword />} />
@@ -83,7 +84,8 @@ function App() {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/support" element={<SupportPage />} />
         <Route path="/instructions" element={<InstructionsPage />} />
-        <Route path="/admin" element={<AdminLogin />} />
+        <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminOverview />} />
         <Route path="/admin/users" element={<AdminUserManagement />} />
         <Route path="/admin/accounts" element={<AdminAccounts />} />
