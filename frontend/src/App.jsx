@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
@@ -42,12 +43,30 @@ import AdminEmailTemplates from './pages/AdminEmailTemplates'
 import AdminBookManagement from './pages/AdminBookManagement'
 import AdminABookOrders from './pages/AdminABookOrders'
 import AdminTradingView from './pages/AdminTradingView'
+import LandingPage from './pages/LandingPage'
 
 function App() {
   return (
     <Router>
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#1a1a2e',
+            color: '#fff',
+            border: '1px solid #333'
+          },
+          success: {
+            iconTheme: { primary: '#10b981', secondary: '#fff' }
+          },
+          error: {
+            iconTheme: { primary: '#ef4444', secondary: '#fff' }
+          }
+        }}
+      />
       <Routes>
-        <Route path="/" element={<Signup />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Navigate to="/user/login" replace />} />
         <Route path="/signup" element={<Navigate to="/user/signup" replace />} />
         <Route path="/user/signup" element={<Signup />} />

@@ -17,6 +17,7 @@ import {
   Percent
 } from 'lucide-react'
 import { API_URL } from '../config/api'
+import toast from 'react-hot-toast'
 
 const AdminBankSettings = () => {
   const [paymentMethods, setPaymentMethods] = useState([])
@@ -51,6 +52,10 @@ const AdminBankSettings = () => {
   const [bankRequests, setBankRequests] = useState([])
   const [requestStats, setRequestStats] = useState({ pending: 0, approved: 0, rejected: 0 })
   const [requestFilter, setRequestFilter] = useState('Pending')
+  
+  // Confirmation modal state
+  const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
+  
 
   useEffect(() => {
     fetchPaymentMethods()
@@ -90,12 +95,12 @@ const AdminBankSettings = () => {
       })
       const data = await res.json()
       if (data.success) {
-        alert('Bank account approved!')
+        toast.success('Bank account approved!')
         fetchBankRequests()
         fetchRequestStats()
       }
     } catch (error) {
-      alert('Error approving request')
+      toast.error('Error approving request')
     }
   }
 
@@ -111,12 +116,12 @@ const AdminBankSettings = () => {
       })
       const data = await res.json()
       if (data.success) {
-        alert('Bank account rejected!')
+        toast.success('Bank account rejected!')
         fetchBankRequests()
         fetchRequestStats()
       }
     } catch (error) {
-      alert('Error rejecting request')
+      toast.error('Error rejecting request')
     }
   }
 
@@ -160,38 +165,44 @@ const AdminBankSettings = () => {
       const res = await fetch(`${API_URL}/payment-methods/currencies/live-rates`)
       const data = await res.json()
       if (data.success && data.rates) {
-        alert(`Live rates fetched! ${Object.keys(data.rates).length} currencies updated.`)
+        toast.success(`Live rates fetched! ${Object.keys(data.rates).length} currencies updated.`)
         fetchCurrencyMarkups()
       } else {
-        alert(data.message || 'Failed to fetch live rates')
+        toast.error(data.message || 'Failed to fetch live rates')
       }
     } catch (error) {
       console.error('Error fetching live rates:', error)
-      alert('Error fetching live rates')
+      toast.error('Error fetching live rates')
     }
   }
 
   // Add all common currencies with live rates
-  const addAllCurrencies = async () => {
-    if (!confirm('This will add all common currencies with live exchange rates. Continue?')) return
-    
-    try {
-      const res = await fetch(`${API_URL}/payment-methods/currencies/add-all`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currencies: commonCurrencies })
-      })
-      const data = await res.json()
-      if (data.success) {
-        alert(`Added ${data.addedCount} currencies with live rates!`)
-        fetchCurrencyMarkups()
-      } else {
-        alert(data.message || 'Failed to add currencies')
+  const addAllCurrencies = () => {
+    setConfirmModal({
+      show: true,
+      title: 'Add All Currencies',
+      message: 'This will add all common currencies with live exchange rates. Continue?',
+      onConfirm: async () => {
+        setConfirmModal({ show: false, title: '', message: '', onConfirm: null })
+        try {
+          const res = await fetch(`${API_URL}/payment-methods/currencies/add-all`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ currencies: commonCurrencies })
+          })
+          const data = await res.json()
+          if (data.success) {
+            toast.success(`Added ${data.addedCount} currencies with live rates!`)
+            fetchCurrencyMarkups()
+          } else {
+            toast.error(data.message || 'Failed to add currencies')
+          }
+        } catch (error) {
+          console.error('Error adding currencies:', error)
+          toast.error('Error adding currencies')
+        }
       }
-    } catch (error) {
-      console.error('Error adding currencies:', error)
-      alert('Error adding currencies')
-    }
+    })
   }
 
   // Update single currency with live rate
@@ -202,13 +213,13 @@ const AdminBankSettings = () => {
       })
       const data = await res.json()
       if (data.success) {
-        alert(`${currencyCode} rate updated to ${data.rate}`)
+        toast.success(`${currencyCode} rate updated to ${data.rate}`)
         fetchCurrencyMarkups()
       } else {
-        alert(data.message || 'Failed to update rate')
+        toast.error(data.message || 'Failed to update rate')
       }
     } catch (error) {
-      alert('Error updating rate')
+      toast.error('Error updating rate')
     }
   }
 
@@ -227,30 +238,37 @@ const AdminBankSettings = () => {
       const data = await res.json()
       
       if (res.ok) {
-        alert(editingCurrency ? 'Currency updated!' : 'Currency added!')
+        toast.success(editingCurrency ? 'Currency updated!' : 'Currency added!')
         setShowCurrencyModal(false)
         setEditingCurrency(null)
         resetCurrencyForm()
         fetchCurrencyMarkups()
       } else {
-        alert(data.message || 'Error saving currency')
+        toast.error(data.message || 'Error saving currency')
       }
     } catch (error) {
-      alert('Error saving currency')
+      toast.error('Error saving currency')
     }
   }
 
-  const handleDeleteCurrency = async (id) => {
-    if (!confirm('Are you sure you want to delete this currency?')) return
-    try {
-      const res = await fetch(`${API_URL}/payment-methods/currencies/${id}`, { method: 'DELETE' })
-      if (res.ok) {
-        alert('Currency deleted!')
-        fetchCurrencyMarkups()
+  const handleDeleteCurrency = (id) => {
+    setConfirmModal({
+      show: true,
+      title: 'Delete Currency',
+      message: 'Are you sure you want to delete this currency?',
+      onConfirm: async () => {
+        setConfirmModal({ show: false, title: '', message: '', onConfirm: null })
+        try {
+          const res = await fetch(`${API_URL}/payment-methods/currencies/${id}`, { method: 'DELETE' })
+          if (res.ok) {
+            toast.success('Currency deleted!')
+            fetchCurrencyMarkups()
+          }
+        } catch (error) {
+          toast.error('Error deleting currency')
+        }
       }
-    } catch (error) {
-      alert('Error deleting currency')
-    }
+    })
   }
 
   const openEditCurrencyModal = (currency) => {
@@ -302,30 +320,37 @@ const AdminBankSettings = () => {
       const data = await res.json()
       
       if (res.ok) {
-        alert(editingMethod ? 'Payment method updated!' : 'Payment method created!')
+        toast.success(editingMethod ? 'Payment method updated!' : 'Payment method created!')
         setShowAddModal(false)
         setEditingMethod(null)
         resetForm()
         fetchPaymentMethods()
       } else {
-        alert(data.message || 'Error saving payment method')
+        toast.error(data.message || 'Error saving payment method')
       }
     } catch (error) {
-      alert('Error saving payment method')
+      toast.error('Error saving payment method')
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this payment method?')) return
-    try {
-      const res = await fetch(`${API_URL}/payment-methods/${id}`, { method: 'DELETE' })
-      if (res.ok) {
-        alert('Payment method deleted!')
-        fetchPaymentMethods()
+  const handleDelete = (id) => {
+    setConfirmModal({
+      show: true,
+      title: 'Delete Payment Method',
+      message: 'Are you sure you want to delete this payment method?',
+      onConfirm: async () => {
+        setConfirmModal({ show: false, title: '', message: '', onConfirm: null })
+        try {
+          const res = await fetch(`${API_URL}/payment-methods/${id}`, { method: 'DELETE' })
+          if (res.ok) {
+            toast.success('Payment method deleted!')
+            fetchPaymentMethods()
+          }
+        } catch (error) {
+          toast.error('Error deleting payment method')
+        }
       }
-    } catch (error) {
-      alert('Error deleting payment method')
-    }
+    })
   }
 
   const handleToggleStatus = async (method) => {
@@ -337,7 +362,7 @@ const AdminBankSettings = () => {
       })
       fetchPaymentMethods()
     } catch (error) {
-      alert('Error updating status')
+      toast.error('Error updating status')
     }
   }
 
@@ -1107,6 +1132,30 @@ const AdminBankSettings = () => {
                   {editingMethod ? 'Update' : 'Create'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md mx-4 border border-gray-700">
+            <h3 className="text-xl font-semibold text-white mb-3">{confirmModal.title}</h3>
+            <p className="text-gray-400 mb-6">{confirmModal.message}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmModal({ show: false, title: '', message: '', onConfirm: null })}
+                className="flex-1 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmModal.onConfirm}
+                className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+              >
+                Confirm
+              </button>
             </div>
           </div>
         </div>
