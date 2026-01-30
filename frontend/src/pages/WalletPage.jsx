@@ -62,6 +62,10 @@ const WalletPage = () => {
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false)
   const [userBankAccounts, setUserBankAccounts] = useState([])
   const [selectedBankAccount, setSelectedBankAccount] = useState(null)
+  const [withdrawalType, setWithdrawalType] = useState('') // 'local' or 'crypto'
+  const [withdrawalNote, setWithdrawalNote] = useState('')
+  const [cryptoAddress, setCryptoAddress] = useState('')
+  const [cryptoNetwork, setCryptoNetwork] = useState('')
   const fileInputRef = useRef(null)
   
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'))
@@ -323,12 +327,12 @@ const WalletPage = () => {
   }
 
   const handleWithdraw = async () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      setError('Please enter a valid amount')
+    if (!withdrawalType) {
+      setError('Please select withdrawal type')
       return
     }
-    if (!selectedBankAccount) {
-      setError('Please select a withdrawal account')
+    if (!amount || parseFloat(amount) <= 0) {
+      setError('Please enter a valid amount')
       return
     }
     if (wallet && parseFloat(amount) > wallet.balance) {
@@ -336,19 +340,48 @@ const WalletPage = () => {
       return
     }
 
+    if (withdrawalType === 'local' && !selectedBankAccount) {
+      setError('Please select a withdrawal account')
+      return
+    }
+
+    if (withdrawalType === 'crypto') {
+      if (!cryptoAddress) {
+        setError('Please enter crypto wallet address')
+        return
+      }
+      if (!cryptoNetwork) {
+        setError('Please select crypto network')
+        return
+      }
+    }
+
     try {
+      const withdrawalData = {
+        userId: user._id,
+        amount: parseFloat(amount),
+        withdrawalType: withdrawalType,
+        note: withdrawalNote || ''
+      }
+
+      if (withdrawalType === 'local') {
+        withdrawalData.paymentMethod = selectedBankAccount.type === 'UPI' ? 'UPI' : 'Bank Transfer'
+        withdrawalData.bankAccountId = selectedBankAccount._id
+        withdrawalData.bankAccountDetails = selectedBankAccount.type === 'UPI' 
+          ? { type: 'UPI', upiId: selectedBankAccount.upiId }
+          : { type: 'Bank', bankName: selectedBankAccount.bankName, accountNumber: selectedBankAccount.accountNumber, ifscCode: selectedBankAccount.ifscCode }
+      } else {
+        withdrawalData.paymentMethod = 'Crypto'
+        withdrawalData.cryptoDetails = {
+          address: cryptoAddress,
+          network: cryptoNetwork
+        }
+      }
+
       const res = await fetch(`${API_URL}/wallet/withdraw`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user._id,
-          amount: parseFloat(amount),
-          paymentMethod: selectedBankAccount.type === 'UPI' ? 'UPI' : 'Bank Transfer',
-          bankAccountId: selectedBankAccount._id,
-          bankAccountDetails: selectedBankAccount.type === 'UPI' 
-            ? { type: 'UPI', upiId: selectedBankAccount.upiId }
-            : { type: 'Bank', bankName: selectedBankAccount.bankName, accountNumber: selectedBankAccount.accountNumber, ifscCode: selectedBankAccount.ifscCode }
-        })
+        body: JSON.stringify(withdrawalData)
       })
       const data = await res.json()
       
@@ -357,6 +390,10 @@ const WalletPage = () => {
         setShowWithdrawModal(false)
         setAmount('')
         setSelectedBankAccount(null)
+        setWithdrawalType('')
+        setWithdrawalNote('')
+        setCryptoAddress('')
+        setCryptoNetwork('')
         fetchWallet()
         fetchTransactions()
         setTimeout(() => setSuccess(''), 3000)
@@ -951,6 +988,10 @@ const WalletPage = () => {
                   setShowWithdrawModal(false)
                   setAmount('')
                   setSelectedBankAccount(null)
+                  setWithdrawalType('')
+                  setWithdrawalNote('')
+                  setCryptoAddress('')
+                  setCryptoNetwork('')
                   setError('')
                 }}
                 className="text-gray-400 hover:text-white"
@@ -959,13 +1000,44 @@ const WalletPage = () => {
               </button>
             </div>
 
-            <div className="mb-2 p-3 bg-dark-700 rounded-lg">
+            <div className="mb-4 p-3 bg-dark-700 rounded-lg">
               <p className="text-gray-400 text-sm">Available Balance</p>
               <p className="text-white text-xl font-bold">${wallet?.balance?.toLocaleString() || '0.00'}</p>
             </div>
 
+            {/* Withdrawal Type Selection */}
             <div className="mb-4">
-              <label className="block text-gray-400 text-sm mb-2">Amount</label>
+              <label className="block text-gray-400 text-sm mb-2">Select Withdrawal Type</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setWithdrawalType('local')}
+                  className={`p-4 rounded-lg border transition-colors flex flex-col items-center gap-2 ${
+                    withdrawalType === 'local'
+                      ? 'border-accent-green bg-accent-green/10'
+                      : 'border-gray-700 bg-dark-700 hover:border-gray-600'
+                  }`}
+                >
+                  <Building size={24} className={withdrawalType === 'local' ? 'text-accent-green' : 'text-gray-400'} />
+                  <span className={`font-medium ${withdrawalType === 'local' ? 'text-accent-green' : 'text-white'}`}>Local Withdrawal</span>
+                  <span className="text-gray-500 text-xs">Bank / UPI</span>
+                </button>
+                <button
+                  onClick={() => setWithdrawalType('crypto')}
+                  className={`p-4 rounded-lg border transition-colors flex flex-col items-center gap-2 ${
+                    withdrawalType === 'crypto'
+                      ? 'border-accent-green bg-accent-green/10'
+                      : 'border-gray-700 bg-dark-700 hover:border-gray-600'
+                  }`}
+                >
+                  <Wallet size={24} className={withdrawalType === 'crypto' ? 'text-accent-green' : 'text-gray-400'} />
+                  <span className={`font-medium ${withdrawalType === 'crypto' ? 'text-accent-green' : 'text-white'}`}>Crypto Withdrawal</span>
+                  <span className="text-gray-500 text-xs">USDT / BTC</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-gray-400 text-sm mb-2">Amount (USD)</label>
               <input
                 type="number"
                 value={amount}
@@ -975,50 +1047,95 @@ const WalletPage = () => {
               />
             </div>
 
-            <div className="mb-6">
-              <label className="block text-gray-400 text-sm mb-2">Select Withdrawal Account</label>
-              {userBankAccounts.length === 0 ? (
-                <div className="p-4 bg-dark-700 rounded-lg border border-gray-700 text-center">
-                  <p className="text-gray-400 mb-3">No approved bank accounts or UPI IDs found.</p>
-                  <button
-                    onClick={() => {
-                      setShowWithdrawModal(false)
-                      navigate('/profile')
-                    }}
-                    className="bg-accent-green text-black px-4 py-2 rounded-lg font-medium hover:bg-accent-green/90 transition-colors"
-                  >
-                    Add Withdrawal Account
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {userBankAccounts.map((account) => (
+            {/* Local Withdrawal - Bank Account Selection */}
+            {withdrawalType === 'local' && (
+              <div className="mb-4">
+                <label className="block text-gray-400 text-sm mb-2">Select Withdrawal Account</label>
+                {userBankAccounts.length === 0 ? (
+                  <div className="p-4 bg-dark-700 rounded-lg border border-gray-700 text-center">
+                    <p className="text-gray-400 mb-3">No approved bank accounts or UPI IDs found.</p>
                     <button
-                      key={account._id}
-                      onClick={() => setSelectedBankAccount(account)}
-                      className={`w-full p-3 rounded-lg border transition-colors flex items-center gap-3 text-left ${
-                        selectedBankAccount?._id === account._id
-                          ? 'border-accent-green bg-accent-green/10'
-                          : 'border-gray-700 bg-dark-700 hover:border-gray-600'
-                      }`}
+                      onClick={() => {
+                        setShowWithdrawModal(false)
+                        navigate('/profile')
+                      }}
+                      className="bg-accent-green text-black px-4 py-2 rounded-lg font-medium hover:bg-accent-green/90 transition-colors"
                     >
-                      {account.type === 'UPI' ? (
-                        <Smartphone size={20} className="text-blue-400" />
-                      ) : (
-                        <Building size={20} className="text-purple-400" />
-                      )}
-                      <div className="flex-1">
-                        <p className="text-white font-medium">{account.bankName || 'UPI'}</p>
-                        <p className="text-gray-400 text-sm">
-                          {account.type === 'UPI' 
-                            ? account.upiId 
-                            : `A/C: ${account.accountNumber} | IFSC: ${account.ifscCode}`}
-                        </p>
-                      </div>
+                      Add Withdrawal Account
                     </button>
-                  ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {userBankAccounts.map((account) => (
+                      <button
+                        key={account._id}
+                        onClick={() => setSelectedBankAccount(account)}
+                        className={`w-full p-3 rounded-lg border transition-colors flex items-center gap-3 text-left ${
+                          selectedBankAccount?._id === account._id
+                            ? 'border-accent-green bg-accent-green/10'
+                            : 'border-gray-700 bg-dark-700 hover:border-gray-600'
+                        }`}
+                      >
+                        {account.type === 'UPI' ? (
+                          <Smartphone size={20} className="text-blue-400" />
+                        ) : (
+                          <Building size={20} className="text-purple-400" />
+                        )}
+                        <div className="flex-1">
+                          <p className="text-white font-medium">{account.bankName || 'UPI'}</p>
+                          <p className="text-gray-400 text-sm">
+                            {account.type === 'UPI' 
+                              ? account.upiId 
+                              : `A/C: ${account.accountNumber} | IFSC: ${account.ifscCode}`}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Crypto Withdrawal Fields */}
+            {withdrawalType === 'crypto' && (
+              <div className="space-y-4 mb-4">
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Select Network</label>
+                  <select
+                    value={cryptoNetwork}
+                    onChange={(e) => setCryptoNetwork(e.target.value)}
+                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-green"
+                  >
+                    <option value="">Select Network</option>
+                    <option value="TRC20">TRC20 (USDT)</option>
+                    <option value="ERC20">ERC20 (USDT/ETH)</option>
+                    <option value="BEP20">BEP20 (BSC)</option>
+                    <option value="BTC">Bitcoin (BTC)</option>
+                  </select>
                 </div>
-              )}
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Wallet Address</label>
+                  <input
+                    type="text"
+                    value={cryptoAddress}
+                    onChange={(e) => setCryptoAddress(e.target.value)}
+                    placeholder="Enter your crypto wallet address"
+                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-accent-green"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Note Field */}
+            <div className="mb-4">
+              <label className="block text-gray-400 text-sm mb-2">Note (Optional)</label>
+              <textarea
+                value={withdrawalNote}
+                onChange={(e) => setWithdrawalNote(e.target.value)}
+                placeholder="Add any additional notes..."
+                rows={2}
+                className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-accent-green resize-none"
+              />
             </div>
 
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
@@ -1029,6 +1146,10 @@ const WalletPage = () => {
                   setShowWithdrawModal(false)
                   setAmount('')
                   setSelectedBankAccount(null)
+                  setWithdrawalType('')
+                  setWithdrawalNote('')
+                  setCryptoAddress('')
+                  setCryptoNetwork('')
                   setError('')
                 }}
                 className="flex-1 bg-dark-700 text-white py-3 rounded-lg hover:bg-dark-600 transition-colors"
@@ -1037,7 +1158,8 @@ const WalletPage = () => {
               </button>
               <button
                 onClick={handleWithdraw}
-                className="flex-1 bg-accent-green text-black font-medium py-3 rounded-lg hover:bg-accent-green/90 transition-colors"
+                disabled={!withdrawalType}
+                className="flex-1 bg-accent-green text-black font-medium py-3 rounded-lg hover:bg-accent-green/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Submit Withdrawal
               </button>

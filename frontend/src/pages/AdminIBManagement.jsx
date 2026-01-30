@@ -271,7 +271,7 @@ const AdminIBManagement = () => {
         body: JSON.stringify({ planId: planId })
       })
       const data = await res.json()
-      if (data.success) {
+      if (res.ok || data.success) {
         alert('IB approved successfully!')
         fetchApplications()
         fetchIBs()

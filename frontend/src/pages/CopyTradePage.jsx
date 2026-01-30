@@ -35,7 +35,8 @@ const CopyTradePage = () => {
     displayName: '',
     description: '',
     tradingAccountId: '',
-    requestedCommissionPercentage: 10
+    requestedCommissionPercentage: 10,
+    commissionPaymentFrequency: 'daily' // 'daily' or 'weekly'
   })
   const [applyingMaster, setApplyingMaster] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
@@ -173,6 +174,14 @@ const CopyTradePage = () => {
     }
     if (!accountId) {
       alert('Please select a trading account')
+      return
+    }
+    if (masterForm.requestedCommissionPercentage > 50) {
+      alert('Commission cannot exceed 50%')
+      return
+    }
+    if (masterForm.requestedCommissionPercentage < 0) {
+      alert('Commission cannot be negative')
       return
     }
     
@@ -429,17 +438,20 @@ const CopyTradePage = () => {
               myMasterProfile.status === 'ACTIVE' ? 'bg-green-500/10 border-green-500/30' :
               myMasterProfile.status === 'PENDING' ? 'bg-yellow-500/10 border-yellow-500/30' :
               myMasterProfile.status === 'REJECTED' ? 'bg-red-500/10 border-red-500/30' :
+              myMasterProfile.status === 'SUSPENDED' ? 'bg-orange-500/10 border-orange-500/30' :
               'bg-gray-500/10 border-gray-500/30'
             }`}>
               <div className={`${isMobile ? 'flex flex-col gap-3' : 'flex items-center justify-between'}`}>
                 <div className="flex items-center gap-3">
                   <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} rounded-full flex items-center justify-center ${
                     myMasterProfile.status === 'ACTIVE' ? 'bg-green-500/20' :
-                    myMasterProfile.status === 'PENDING' ? 'bg-yellow-500/20' : 'bg-red-500/20'
+                    myMasterProfile.status === 'PENDING' ? 'bg-yellow-500/20' :
+                    myMasterProfile.status === 'SUSPENDED' ? 'bg-orange-500/20' : 'bg-red-500/20'
                   }`}>
                     <Crown size={isMobile ? 20 : 24} className={
                       myMasterProfile.status === 'ACTIVE' ? 'text-green-500' :
-                      myMasterProfile.status === 'PENDING' ? 'text-yellow-500' : 'text-red-500'
+                      myMasterProfile.status === 'PENDING' ? 'text-yellow-500' :
+                      myMasterProfile.status === 'SUSPENDED' ? 'text-orange-500' : 'text-red-500'
                     } />
                   </div>
                   <div>
@@ -447,20 +459,32 @@ const CopyTradePage = () => {
                     <p className="text-gray-400 text-xs">
                       <span className={
                         myMasterProfile.status === 'ACTIVE' ? 'text-green-500' :
-                        myMasterProfile.status === 'PENDING' ? 'text-yellow-500' : 'text-red-500'
+                        myMasterProfile.status === 'PENDING' ? 'text-yellow-500' :
+                        myMasterProfile.status === 'SUSPENDED' ? 'text-orange-500' : 'text-red-500'
                       }>{myMasterProfile.status}</span>
                       {myMasterProfile.status === 'ACTIVE' && ` • ${myMasterProfile.stats?.activeFollowers || 0} followers`}
                     </p>
                   </div>
                 </div>
-                {myMasterProfile.status === 'ACTIVE' && (
-                  <div className={isMobile ? '' : 'text-right'}>
+                <div className={`flex items-center gap-3 ${isMobile ? '' : 'text-right'}`}>
+                  {myMasterProfile.status === 'ACTIVE' && (
                     <p className="text-gray-400 text-xs">Commission: <span className="text-white font-semibold">{myMasterProfile.approvedCommissionPercentage}%</span></p>
-                  </div>
-                )}
+                  )}
+                  {(myMasterProfile.status === 'SUSPENDED' || myMasterProfile.status === 'REJECTED') && (
+                    <button
+                      onClick={() => setShowMasterModal(true)}
+                      className="bg-yellow-500 text-black px-4 py-2 rounded-lg font-medium text-sm hover:bg-yellow-400 flex items-center gap-2"
+                    >
+                      <Crown size={16} /> Reapply
+                    </button>
+                  )}
+                </div>
               </div>
               {myMasterProfile.status === 'REJECTED' && myMasterProfile.rejectionReason && (
                 <p className="text-red-400 text-xs mt-2">Reason: {myMasterProfile.rejectionReason}</p>
+              )}
+              {myMasterProfile.status === 'SUSPENDED' && (
+                <p className="text-orange-400 text-xs mt-2">Your master account has been suspended. You can reapply to become a master trader again.</p>
               )}
             </div>
           )}
@@ -923,16 +947,54 @@ const CopyTradePage = () => {
               </div>
 
               <div>
-                <label className="text-gray-400 text-sm mb-1 block">Requested Commission (%)</label>
+                <label className="text-gray-400 text-sm mb-1 block">Requested Commission (%) <span className="text-yellow-500">Max 50%</span></label>
                 <input
                   type="number"
                   value={masterForm.requestedCommissionPercentage}
-                  onChange={(e) => setMasterForm(prev => ({ ...prev, requestedCommissionPercentage: parseFloat(e.target.value) || 0 }))}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0
+                    if (value > 50) {
+                      setMasterForm(prev => ({ ...prev, requestedCommissionPercentage: 50 }))
+                    } else if (value < 0) {
+                      setMasterForm(prev => ({ ...prev, requestedCommissionPercentage: 0 }))
+                    } else {
+                      setMasterForm(prev => ({ ...prev, requestedCommissionPercentage: value }))
+                    }
+                  }}
                   min="0"
                   max="50"
                   className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
                 />
-                <p className="text-gray-500 text-xs mt-1">Commission you'll earn from followers' daily profits (0-50%)</p>
+                <p className="text-gray-500 text-xs mt-1">Commission you'll earn from followers' profits (0-50% maximum)</p>
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-1 block">Commission Payment Frequency *</label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setMasterForm(prev => ({ ...prev, commissionPaymentFrequency: 'daily' }))}
+                    className={`flex-1 py-2 rounded-lg border transition-colors ${
+                      masterForm.commissionPaymentFrequency === 'daily'
+                        ? 'bg-yellow-500 text-black border-yellow-500 font-medium'
+                        : 'bg-dark-700 text-gray-400 border-gray-600 hover:border-gray-500'
+                    }`}
+                  >
+                    Daily
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMasterForm(prev => ({ ...prev, commissionPaymentFrequency: 'weekly' }))}
+                    className={`flex-1 py-2 rounded-lg border transition-colors ${
+                      masterForm.commissionPaymentFrequency === 'weekly'
+                        ? 'bg-yellow-500 text-black border-yellow-500 font-medium'
+                        : 'bg-dark-700 text-gray-400 border-gray-600 hover:border-gray-500'
+                    }`}
+                  >
+                    Weekly
+                  </button>
+                </div>
+                <p className="text-gray-500 text-xs mt-1">How often you want to receive commission payments</p>
               </div>
 
               <div className="bg-dark-700 rounded-lg p-4 space-y-2">

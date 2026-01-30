@@ -305,7 +305,10 @@ const Signup = () => {
       {/* Modal */}
       <div className="relative bg-dark-700 rounded-2xl p-6 sm:p-8 w-full max-w-md border border-gray-800 mx-4 sm:mx-0">
         {/* Close button */}
-        <button className="absolute top-4 right-4 w-8 h-8 bg-dark-600 rounded-full flex items-center justify-center hover:bg-dark-500 transition-colors">
+        <button 
+          onClick={() => navigate('/')}
+          className="absolute top-4 right-4 w-8 h-8 bg-dark-600 rounded-full flex items-center justify-center hover:bg-dark-500 transition-colors"
+        >
           <X size={16} className="text-gray-400" />
         </button>
 

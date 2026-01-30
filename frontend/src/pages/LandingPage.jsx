@@ -179,7 +179,7 @@ const LandingPage = () => {
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src={concorddexLogo} alt="Concorddex" className="h-8 sm:h-10" />
+            <img src={concorddexLogo} alt="Concorddex" className="h-12 sm:h-16" />
           </div>
           
           <div className="hidden lg:flex items-center gap-8">
@@ -602,7 +602,7 @@ const LandingPage = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 sm:gap-12 mb-12">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-3 mb-6">
-                <img src={concorddexLogo} alt="Concorddex" className="h-12" />
+                <img src={concorddexLogo} alt="Concorddex" className="h-14 sm:h-16" />
               </div>
               <p className="text-sm leading-relaxed mb-6" style={{ color: 'var(--text-secondary)' }}>
                 Your trusted partner for global trading. Trade with confidence on the world's most advanced platform.

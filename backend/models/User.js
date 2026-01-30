@@ -55,7 +55,7 @@ const userSchema = new mongoose.Schema({
   },
   ibStatus: {
     type: String,
-    enum: ['PENDING', 'ACTIVE', 'BLOCKED', null],
+    enum: ['PENDING', 'ACTIVE', 'BLOCKED', 'REJECTED', null],
     default: null
   },
   ibPlanId: {

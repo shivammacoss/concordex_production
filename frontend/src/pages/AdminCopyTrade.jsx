@@ -153,6 +153,29 @@ const AdminCopyTrade = () => {
     }
   }
 
+  const handleActivate = async (masterId) => {
+    if (!confirm('Are you sure you want to activate this master?')) return
+    
+    try {
+      const res = await fetch(`${API_URL}/copy/admin/activate/${masterId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminId: adminUser._id })
+      })
+      const data = await res.json()
+      if (data.master) {
+        alert('Master activated successfully!')
+        fetchMasters()
+        fetchDashboard()
+      } else {
+        alert(data.message || 'Failed to activate master')
+      }
+    } catch (error) {
+      console.error('Error activating master:', error)
+      alert('Failed to activate master')
+    }
+  }
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'ACTIVE': return 'bg-green-500/20 text-green-500'
@@ -319,6 +342,9 @@ const AdminCopyTrade = () => {
                         )}
                         {master.status === 'ACTIVE' && (
                           <button onClick={() => handleSuspend(master._id)} className="p-2 hover:bg-dark-600 rounded-lg text-gray-400 hover:text-red-500" title="Suspend"><Trash2 size={16} /></button>
+                        )}
+                        {(master.status === 'SUSPENDED' || master.status === 'REJECTED') && (
+                          <button onClick={() => handleActivate(master._id)} className="p-2 hover:bg-dark-600 rounded-lg text-gray-400 hover:text-green-500" title="Activate"><Check size={16} /></button>
                         )}
                       </div>
                     </td>

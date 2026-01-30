@@ -95,6 +95,9 @@ const TradingPage = () => {
   const [modifySL, setModifySL] = useState('')
   const [modifyTP, setModifyTP] = useState('')
   
+  // Chart timeframe state
+  const [chartTimeframe, setChartTimeframe] = useState('5')
+  
   // Kill Switch states
   const [showKillSwitchModal, setShowKillSwitchModal] = useState(false)
   const [killSwitchActive, setKillSwitchActive] = useState(false)
@@ -1344,14 +1347,52 @@ const TradingPage = () => {
           </div>
 
           {/* Chart - Always visible TradingView Advanced Chart with Side Toolbar */}
-          <div className={`flex-1 min-h-0 relative ${isDarkMode ? 'bg-[#0d0d0d]' : 'bg-white'}`}>
-            <iframe
-              key={`${selectedInstrument.symbol}-${isDarkMode}`}
-              src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_chart&symbol=${getSymbolForTradingView(selectedInstrument.symbol)}&interval=5&hidesidetoolbar=0&hidetoptoolbar=0&symboledit=1&saveimage=1&toolbarbg=${isDarkMode ? '0d0d0d' : 'ffffff'}&studies=[]&theme=${isDarkMode ? 'dark' : 'light'}&style=1&timezone=Etc%2FUTC&withdateranges=1&showpopupbutton=1&studies_overrides={}&overrides={}&enabled_features=["left_toolbar","header_widget"]&disabled_features=[]&locale=en&utm_source=localhost&utm_medium=widget_new&utm_campaign=chart&hide_side_toolbar=0`}
-              style={{ width: '100%', height: '100%', border: 'none' }}
-              allowFullScreen
-              title="TradingView Chart"
-            />
+          <div className={`flex-1 min-h-0 relative flex flex-col ${isDarkMode ? 'bg-[#0d0d0d]' : 'bg-white'}`}>
+            {/* Timeframe Selector Dropdown */}
+            <div className={`flex items-center gap-2 px-2 py-1 border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+              <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Timeframe:</span>
+              <select
+                value={chartTimeframe}
+                onChange={(e) => setChartTimeframe(e.target.value)}
+                className={`px-3 py-1 text-xs rounded border cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent-green ${
+                  isDarkMode 
+                    ? 'bg-dark-700 border-gray-700 text-white' 
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
+              >
+                <optgroup label="Seconds">
+                  <option value="1S">1 Second</option>
+                  <option value="5S">5 Seconds</option>
+                  <option value="10S">10 Seconds</option>
+                  <option value="15S">15 Seconds</option>
+                  <option value="30S">30 Seconds</option>
+                </optgroup>
+                <optgroup label="Minutes">
+                  <option value="1">1 Minute</option>
+                  <option value="5">5 Minutes</option>
+                  <option value="15">15 Minutes</option>
+                  <option value="30">30 Minutes</option>
+                </optgroup>
+                <optgroup label="Hours">
+                  <option value="60">1 Hour</option>
+                  <option value="240">4 Hours</option>
+                </optgroup>
+                <optgroup label="Days">
+                  <option value="D">1 Day</option>
+                  <option value="W">1 Week</option>
+                  <option value="M">1 Month</option>
+                </optgroup>
+              </select>
+            </div>
+            <div className="flex-1 min-h-0">
+              <iframe
+                key={`${selectedInstrument.symbol}-${isDarkMode}-${chartTimeframe}`}
+                src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_chart&symbol=${getSymbolForTradingView(selectedInstrument.symbol)}&interval=${chartTimeframe}&hidesidetoolbar=0&hidetoptoolbar=0&symboledit=1&saveimage=1&toolbarbg=${isDarkMode ? '0d0d0d' : 'ffffff'}&studies=[]&theme=${isDarkMode ? 'dark' : 'light'}&style=1&timezone=Etc%2FUTC&withdateranges=1&showpopupbutton=1&studies_overrides={}&overrides={}&enabled_features=["left_toolbar","header_widget"]&disabled_features=[]&locale=en&utm_source=localhost&utm_medium=widget_new&utm_campaign=chart&hide_side_toolbar=0`}
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                allowFullScreen
+                title="TradingView Chart"
+              />
+            </div>
           </div>
 
           {/* Positions Panel */}

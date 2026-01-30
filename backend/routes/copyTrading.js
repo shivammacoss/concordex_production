@@ -586,6 +586,34 @@ router.put('/admin/suspend/:id', async (req, res) => {
   }
 })
 
+// PUT /api/copy/admin/activate/:id - Activate suspended/rejected master
+router.put('/admin/activate/:id', async (req, res) => {
+  try {
+    const { adminId } = req.body
+
+    const master = await MasterTrader.findById(req.params.id)
+    if (!master) {
+      return res.status(404).json({ message: 'Master not found' })
+    }
+
+    if (master.status === 'ACTIVE') {
+      return res.status(400).json({ message: 'Master is already active' })
+    }
+
+    master.status = 'ACTIVE'
+    master.approvedAt = new Date()
+    master.approvedBy = adminId
+    await master.save()
+
+    res.json({ 
+      message: 'Master activated successfully', 
+      master
+    })
+  } catch (error) {
+    res.status(500).json({ message: 'Error activating master', error: error.message })
+  }
+})
+
 // GET /api/copy/admin/masters - Get all masters (admin view)
 router.get('/admin/masters', async (req, res) => {
   try {

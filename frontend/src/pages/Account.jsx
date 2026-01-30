@@ -33,6 +33,17 @@ import {
 import { useTheme } from '../context/ThemeContext'
 import { API_URL } from '../config/api'
 
+// Helper function to format balance based on account type
+const formatBalance = (balance, accountType) => {
+  const isCentAccount = accountType?.name?.toLowerCase().includes('cent')
+  if (isCentAccount) {
+    // For CENT accounts, multiply by 100 to show in cents
+    const centBalance = (balance || 0) * 100
+    return `¢${centBalance.toLocaleString()}`
+  }
+  return `$${(balance || 0).toLocaleString()}`
+}
+
 const Account = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -883,7 +894,7 @@ const Account = () => {
                   {/* Card Body - Balance & Details */}
                   <div className={`${isMobile ? 'p-3' : 'p-4'}`}>
                     <div className="text-center mb-3">
-                      <p className={`font-bold ${isMobile ? 'text-2xl' : 'text-3xl'} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>${account.balance.toLocaleString()}</p>
+                      <p className={`font-bold ${isMobile ? 'text-2xl' : 'text-3xl'} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatBalance(account.balance, account.accountTypeId)}</p>
                       <p className="text-gray-500 text-sm mt-1">Balance</p>
                     </div>
                     
@@ -903,7 +914,7 @@ const Account = () => {
                       </div>
                       <div className="text-center">
                         <p className="text-gray-500 text-xs">Equity</p>
-                        <p className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>${((account.balance || 0) + (account.credit || 0)).toLocaleString()}</p>
+                        <p className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatBalance((account.balance || 0) + (account.credit || 0), account.accountTypeId)}</p>
                       </div>
                     </div>
                   </div>
@@ -1226,7 +1237,7 @@ const Account = () => {
               </div>
               <div className="flex justify-between text-sm mt-3 pt-3 border-t border-gray-600">
                 <span className="text-gray-400">Account Balance:</span>
-                <span className="text-white font-medium">${selectedAccount.balance.toLocaleString()}</span>
+                <span className="text-white font-medium">{formatBalance(selectedAccount.balance, selectedAccount.accountTypeId)}</span>
               </div>
             </div>
 
@@ -1318,7 +1329,7 @@ const Account = () => {
               </div>
               <div className="flex justify-between text-sm mt-3 pt-3 border-t border-gray-600">
                 <span className="text-gray-400">Available Balance:</span>
-                <span className="text-white font-medium">${selectedAccount.balance.toLocaleString()}</span>
+                <span className="text-white font-medium">{formatBalance(selectedAccount.balance, selectedAccount.accountTypeId)}</span>
               </div>
             </div>
 
@@ -1400,7 +1411,7 @@ const Account = () => {
                   <TrendingUp size={16} className="text-blue-500" />
                   <span className="text-white font-medium">{selectedAccount.accountId}</span>
                 </div>
-                <span className="text-white">${selectedAccount.balance.toLocaleString()}</span>
+                <span className="text-white">{formatBalance(selectedAccount.balance, selectedAccount.accountTypeId)}</span>
               </div>
             </div>
 

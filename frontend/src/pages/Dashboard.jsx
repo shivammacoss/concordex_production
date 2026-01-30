@@ -412,7 +412,7 @@ const Dashboard = () => {
       >
         {/* Logo - Icon only */}
         <div className="p-4 flex items-center justify-center shrink-0">
-          <img src={concorddexLogo} alt="Concorddex" className="w-8 h-8 rounded object-cover" />
+          <img src={concorddexLogo} alt="Concorddex" className="w-16 h-16 rounded object-cover" />
         </div>
 
         {/* Menu */}
