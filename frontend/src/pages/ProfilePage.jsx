@@ -4,7 +4,7 @@ import concorddexLogo from '../assets/concorddex.png'
 import { 
   LayoutDashboard, User, Wallet, Users, Copy, UserCircle, HelpCircle, FileText, LogOut,
   Mail, Phone, MapPin, Calendar, Shield, Edit2, Save, X, Camera, Building2, Smartphone, CreditCard, Trophy,
-  ArrowLeft, Home, Upload, CheckCircle, Clock, XCircle, FileCheck, Sun, Moon
+  ArrowLeft, Home, Upload, CheckCircle, Clock, XCircle, FileCheck, Sun, Moon, Bitcoin
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { API_URL } from '../config/api'
@@ -31,19 +31,16 @@ const ProfilePage = () => {
     selfieImage: ''
   })
 
-  // Bank Account State
-  const [userBankAccounts, setUserBankAccounts] = useState([])
-  const [showBankForm, setShowBankForm] = useState(false)
-  const [bankFormType, setBankFormType] = useState('Bank Transfer')
-  const [bankForm, setBankForm] = useState({
-    bankName: '',
-    accountNumber: '',
-    accountHolderName: '',
-    ifscCode: '',
-    branchName: '',
-    upiId: ''
+  // Crypto Wallet State
+  const [userCryptoWallets, setUserCryptoWallets] = useState([])
+  const [showCryptoForm, setShowCryptoForm] = useState(false)
+  const [cryptoFormType, setCryptoFormType] = useState('crypto') // 'crypto' or 'local'
+  const [cryptoForm, setCryptoForm] = useState({
+    network: 'TRC20',
+    walletAddress: '',
+    localAddress: ''
   })
-  const [bankLoading, setBankLoading] = useState(false)
+  const [cryptoLoading, setCryptoLoading] = useState(false)
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768)
@@ -54,79 +51,82 @@ const ProfilePage = () => {
   useEffect(() => {
     fetchChallengeStatus()
     fetchKycStatus()
-    fetchUserBankAccounts()
+    fetchUserCryptoWallets()
   }, [])
 
-  // Fetch user's bank accounts
-  const fetchUserBankAccounts = async () => {
+  // Fetch user's crypto wallets
+  const fetchUserCryptoWallets = async () => {
     try {
-      const res = await fetch(`${API_URL}/payment-methods/user-banks/${storedUser._id}`)
+      const res = await fetch(`${API_URL}/payment-methods/user-crypto/${storedUser._id}`)
       const data = await res.json()
-      setUserBankAccounts(data.accounts || [])
+      setUserCryptoWallets(data.wallets || [])
     } catch (error) {
-      console.error('Error fetching bank accounts:', error)
+      console.error('Error fetching crypto wallets:', error)
     }
   }
 
-  // Submit bank account for approval
-  const handleBankSubmit = async () => {
-    if (bankFormType === 'Bank Transfer') {
-      if (!bankForm.bankName || !bankForm.accountNumber || !bankForm.accountHolderName || !bankForm.ifscCode) {
-        alert('Please fill all required bank details')
+  // Submit crypto wallet for approval
+  const handleCryptoSubmit = async () => {
+    if (cryptoFormType === 'crypto') {
+      if (!cryptoForm.walletAddress) {
+        alert('Please enter wallet address')
         return
       }
     } else {
-      if (!bankForm.upiId) {
-        alert('Please enter UPI ID')
+      if (!cryptoForm.localAddress) {
+        alert('Please enter address')
         return
       }
     }
 
-    setBankLoading(true)
+    setCryptoLoading(true)
     try {
-      const res = await fetch(`${API_URL}/payment-methods/user-banks`, {
+      const payload = {
+        userId: storedUser._id,
+        type: cryptoFormType,
+        ...(cryptoFormType === 'crypto' 
+          ? { network: cryptoForm.network, walletAddress: cryptoForm.walletAddress }
+          : { network: 'LOCAL', walletAddress: cryptoForm.localAddress }
+        )
+      }
+      
+      const res = await fetch(`${API_URL}/payment-methods/user-crypto`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: storedUser._id,
-          type: bankFormType,
-          ...bankForm
-        })
+        body: JSON.stringify(payload)
       })
       const data = await res.json()
       if (data.success) {
-        alert('Bank account submitted for approval!')
-        setShowBankForm(false)
-        setBankForm({
-          bankName: '',
-          accountNumber: '',
-          accountHolderName: '',
-          ifscCode: '',
-          branchName: '',
-          upiId: ''
+        alert(cryptoFormType === 'crypto' ? 'Crypto wallet submitted for approval!' : 'Local withdrawal address submitted for approval!')
+        setShowCryptoForm(false)
+        setCryptoFormType('crypto')
+        setCryptoForm({
+          network: 'TRC20',
+          walletAddress: '',
+          localAddress: ''
         })
-        fetchUserBankAccounts()
+        fetchUserCryptoWallets()
       } else {
-        alert(data.message || 'Failed to submit bank account')
+        alert(data.message || 'Failed to submit')
       }
     } catch (error) {
-      console.error('Error submitting bank account:', error)
-      alert('Failed to submit bank account')
+      console.error('Error submitting:', error)
+      alert('Failed to submit')
     }
-    setBankLoading(false)
+    setCryptoLoading(false)
   }
 
-  // Delete bank account
-  const handleDeleteBankAccount = async (id) => {
-    if (!confirm('Are you sure you want to delete this bank account?')) return
+  // Delete crypto wallet
+  const handleDeleteCryptoWallet = async (id) => {
+    if (!confirm('Are you sure you want to delete this crypto wallet?')) return
     try {
-      const res = await fetch(`${API_URL}/payment-methods/user-banks/${id}`, { method: 'DELETE' })
+      const res = await fetch(`${API_URL}/payment-methods/user-crypto/${id}`, { method: 'DELETE' })
       const data = await res.json()
       if (data.success) {
-        fetchUserBankAccounts()
+        fetchUserCryptoWallets()
       }
     } catch (error) {
-      console.error('Error deleting bank account:', error)
+      console.error('Error deleting crypto wallet:', error)
     }
   }
   
@@ -638,67 +638,61 @@ const ProfilePage = () => {
               </div>
             )}
 
-            {/* Withdrawal Accounts Section */}
+            {/* Crypto Wallet Section */}
             <div className="bg-dark-800 rounded-xl p-6 border border-gray-800 mt-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-white font-semibold flex items-center gap-2">
-                  <CreditCard size={18} /> Withdrawal Accounts
+                  <Bitcoin size={18} /> Crypto Wallet
                 </h3>
                 <button
-                  onClick={() => setShowBankForm(true)}
+                  onClick={() => setShowCryptoForm(true)}
                   className="px-3 py-1.5 bg-green-500/20 text-green-500 rounded-lg text-sm hover:bg-green-500/30"
                 >
-                  + Add Account
+                  + Add Wallet
                 </button>
               </div>
 
               <p className="text-gray-500 text-sm mb-4">
-                Add bank accounts or UPI IDs for withdrawals. Accounts require admin approval before use.
+                Add crypto wallet addresses for withdrawals. Wallets require admin approval before use.
               </p>
 
-              {userBankAccounts.length === 0 ? (
+              {userCryptoWallets.length === 0 ? (
                 <div className="p-4 bg-dark-700 rounded-lg text-center">
-                  <p className="text-gray-500">No withdrawal accounts added yet</p>
+                  <p className="text-gray-500">No crypto wallets added yet</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {userBankAccounts.map((acc) => (
-                    <div key={acc._id} className="p-4 bg-dark-700 rounded-lg border border-gray-700">
+                  {userCryptoWallets.map((wallet) => (
+                    <div key={wallet._id} className="p-4 bg-dark-700 rounded-lg border border-gray-700">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                          {acc.type === 'Bank Transfer' ? (
-                            <Building2 size={20} className="text-blue-500" />
+                          {wallet.network === 'LOCAL' ? (
+                            <MapPin size={20} className="text-blue-500" />
                           ) : (
-                            <Smartphone size={20} className="text-purple-500" />
+                            <Bitcoin size={20} className="text-orange-500" />
                           )}
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="text-white font-medium">
-                                {acc.type === 'Bank Transfer' ? acc.bankName : 'UPI'}
+                                {wallet.network === 'LOCAL' ? 'Local Withdrawal' : wallet.network}
                               </span>
                               <span className={`px-2 py-0.5 rounded text-xs ${
-                                acc.status === 'Pending' ? 'bg-yellow-500/20 text-yellow-500' :
-                                acc.status === 'Approved' ? 'bg-green-500/20 text-green-500' :
+                                wallet.status === 'Pending' ? 'bg-yellow-500/20 text-yellow-500' :
+                                wallet.status === 'Approved' ? 'bg-green-500/20 text-green-500' :
                                 'bg-red-500/20 text-red-500'
                               }`}>
-                                {acc.status}
+                                {wallet.status}
                               </span>
                             </div>
-                            {acc.type === 'Bank Transfer' ? (
-                              <p className="text-gray-500 text-sm">
-                                A/C: {acc.accountNumber} | IFSC: {acc.ifscCode}
-                              </p>
-                            ) : (
-                              <p className="text-purple-400 text-sm font-mono">{acc.upiId}</p>
-                            )}
-                            {acc.rejectionReason && (
-                              <p className="text-red-400 text-xs mt-1">Reason: {acc.rejectionReason}</p>
+                            <p className={`text-gray-400 text-sm break-all ${wallet.network !== 'LOCAL' ? 'font-mono' : ''}`}>{wallet.walletAddress}</p>
+                            {wallet.rejectionReason && (
+                              <p className="text-red-400 text-xs mt-1">Reason: {wallet.rejectionReason}</p>
                             )}
                           </div>
                         </div>
-                        {acc.status !== 'Approved' && (
+                        {wallet.status !== 'Approved' && (
                           <button
-                            onClick={() => handleDeleteBankAccount(acc._id)}
+                            onClick={() => handleDeleteCryptoWallet(wallet._id)}
                             className="text-gray-500 hover:text-red-500"
                           >
                             <X size={16} />
@@ -711,13 +705,13 @@ const ProfilePage = () => {
               )}
             </div>
 
-            {/* Bank Account Form Modal */}
-            {showBankForm && (
+            {/* Crypto Wallet Form Modal */}
+            {showCryptoForm && (
               <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                 <div className="bg-dark-800 rounded-xl w-full max-w-md border border-gray-700 max-h-[90vh] overflow-y-auto">
                   <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-                    <h3 className="text-white font-semibold">Add Withdrawal Account</h3>
-                    <button onClick={() => setShowBankForm(false)} className="text-gray-400 hover:text-white">
+                    <h3 className="text-white font-semibold">Add Wallet</h3>
+                    <button onClick={() => { setShowCryptoForm(false); setCryptoFormType('crypto'); }} className="text-gray-400 hover:text-white">
                       <X size={20} />
                     </button>
                   </div>
@@ -725,112 +719,99 @@ const ProfilePage = () => {
                     {/* Type Selection */}
                     <div className="grid grid-cols-2 gap-2">
                       <button
-                        onClick={() => setBankFormType('Bank Transfer')}
+                        onClick={() => setCryptoFormType('crypto')}
                         className={`p-3 rounded-lg border flex items-center justify-center gap-2 ${
-                          bankFormType === 'Bank Transfer'
+                          cryptoFormType === 'crypto'
+                            ? 'border-orange-500 bg-orange-500/20 text-orange-500'
+                            : 'border-gray-700 text-gray-400'
+                        }`}
+                      >
+                        <Bitcoin size={18} /> Crypto
+                      </button>
+                      <button
+                        onClick={() => setCryptoFormType('local')}
+                        className={`p-3 rounded-lg border flex items-center justify-center gap-2 ${
+                          cryptoFormType === 'local'
                             ? 'border-blue-500 bg-blue-500/20 text-blue-500'
                             : 'border-gray-700 text-gray-400'
                         }`}
                       >
-                        <Building2 size={18} /> Bank
-                      </button>
-                      <button
-                        onClick={() => setBankFormType('UPI')}
-                        className={`p-3 rounded-lg border flex items-center justify-center gap-2 ${
-                          bankFormType === 'UPI'
-                            ? 'border-purple-500 bg-purple-500/20 text-purple-500'
-                            : 'border-gray-700 text-gray-400'
-                        }`}
-                      >
-                        <Smartphone size={18} /> UPI
+                        <MapPin size={18} /> Local Withdrawal
                       </button>
                     </div>
 
-                    {bankFormType === 'Bank Transfer' ? (
+                    {cryptoFormType === 'crypto' ? (
                       <>
+                        {/* Network Selection */}
                         <div>
-                          <label className="text-gray-400 text-sm block mb-1">Bank Name *</label>
-                          <input
-                            type="text"
-                            value={bankForm.bankName}
-                            onChange={(e) => setBankForm({...bankForm, bankName: e.target.value})}
-                            placeholder="e.g., HDFC Bank"
-                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                          <label className="text-gray-400 text-sm block mb-2">Select Network *</label>
+                          <select
+                            value={cryptoForm.network}
+                            onChange={(e) => setCryptoForm({...cryptoForm, network: e.target.value})}
+                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2.5 text-white"
+                          >
+                            <option value="TRC20">TRC20 (USDT)</option>
+                            <option value="ERC20">ERC20 (USDT)</option>
+                            <option value="BEP20">BEP20 (USDT)</option>
+                            <option value="BTC">Bitcoin (BTC)</option>
+                            <option value="ETH">Ethereum (ETH)</option>
+                            <option value="LTC">Litecoin (LTC)</option>
+                          </select>
+                        </div>
+
+                        {/* Wallet Address */}
+                        <div>
+                          <label className="text-gray-400 text-sm block mb-1">Wallet Address *</label>
+                          <textarea
+                            value={cryptoForm.walletAddress}
+                            onChange={(e) => setCryptoForm({...cryptoForm, walletAddress: e.target.value})}
+                            placeholder="Enter your crypto wallet address"
+                            rows={3}
+                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white resize-none font-mono text-sm"
                           />
                         </div>
-                        <div>
-                          <label className="text-gray-400 text-sm block mb-1">Account Number *</label>
-                          <input
-                            type="text"
-                            value={bankForm.accountNumber}
-                            onChange={(e) => setBankForm({...bankForm, accountNumber: e.target.value})}
-                            placeholder="e.g., 1234567890"
-                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-gray-400 text-sm block mb-1">Account Holder Name *</label>
-                          <input
-                            type="text"
-                            value={bankForm.accountHolderName}
-                            onChange={(e) => setBankForm({...bankForm, accountHolderName: e.target.value})}
-                            placeholder="e.g., John Doe"
-                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-gray-400 text-sm block mb-1">IFSC Code *</label>
-                          <input
-                            type="text"
-                            value={bankForm.ifscCode}
-                            onChange={(e) => setBankForm({...bankForm, ifscCode: e.target.value.toUpperCase()})}
-                            placeholder="e.g., HDFC0001234"
-                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white uppercase"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-gray-400 text-sm block mb-1">Branch Name</label>
-                          <input
-                            type="text"
-                            value={bankForm.branchName}
-                            onChange={(e) => setBankForm({...bankForm, branchName: e.target.value})}
-                            placeholder="e.g., Mumbai Main"
-                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
-                          />
+
+                        <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                          <p className="text-yellow-500 text-xs">
+                            ⚠️ Double-check the address before submitting. Crypto transactions cannot be reversed.
+                          </p>
                         </div>
                       </>
                     ) : (
-                      <div>
-                        <label className="text-gray-400 text-sm block mb-1">UPI ID *</label>
-                        <input
-                          type="text"
-                          value={bankForm.upiId}
-                          onChange={(e) => setBankForm({...bankForm, upiId: e.target.value})}
-                          placeholder="e.g., yourname@upi"
-                          className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
-                        />
-                      </div>
-                    )}
+                      <>
+                        {/* Local Address */}
+                        <div>
+                          <label className="text-gray-400 text-sm block mb-1">Address *</label>
+                          <textarea
+                            value={cryptoForm.localAddress}
+                            onChange={(e) => setCryptoForm({...cryptoForm, localAddress: e.target.value})}
+                            placeholder="Enter your full address for local withdrawal"
+                            rows={4}
+                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white resize-none"
+                          />
+                        </div>
 
-                    <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                      <p className="text-yellow-500 text-xs">
-                        ⚠️ Your account will be reviewed by admin before it can be used for withdrawals.
-                      </p>
-                    </div>
+                        <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                          <p className="text-blue-500 text-xs">
+                            ℹ️ Local withdrawal allows you to receive funds at your physical address.
+                          </p>
+                        </div>
+                      </>
+                    )}
 
                     <div className="flex gap-3">
                       <button
-                        onClick={() => setShowBankForm(false)}
+                        onClick={() => { setShowCryptoForm(false); setCryptoFormType('crypto'); }}
                         className="flex-1 py-2 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600"
                       >
                         Cancel
                       </button>
                       <button
-                        onClick={handleBankSubmit}
-                        disabled={bankLoading}
+                        onClick={handleCryptoSubmit}
+                        disabled={cryptoLoading}
                         className="flex-1 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
                       >
-                        {bankLoading ? 'Submitting...' : 'Submit for Approval'}
+                        {cryptoLoading ? 'Submitting...' : 'Submit for Approval'}
                       </button>
                     </div>
                   </div>

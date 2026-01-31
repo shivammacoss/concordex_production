@@ -12,7 +12,8 @@ import {
   X,
   Clock,
   Building2,
-  Smartphone
+  Smartphone,
+  Bitcoin
 } from 'lucide-react'
 import { API_URL, getUploadUrl } from '../config/api'
 
@@ -411,66 +412,87 @@ const AdminFundManagement = () => {
                 </div>
               </div>
 
-              {/* Bank/UPI Details (for withdrawals) */}
+              {/* Withdrawal Details */}
               {selectedTxn.type?.toLowerCase() === 'withdrawal' && (
                 <div className="border-t border-gray-700 pt-4">
-                  <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
-                    {selectedTxn.bankAccountDetails?.type === 'UPI' ? (
-                      <><Smartphone size={16} /> UPI Details</>
-                    ) : (
-                      <><Building2 size={16} /> Bank Details</>
-                    )}
-                  </h3>
-                  
-                  {/* Show bank details from transaction if available */}
-                  {selectedTxn.bankAccountDetails?.type === 'Bank' ? (
-                    <div className="bg-dark-700 rounded-lg p-4 space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Bank Name</span>
-                        <span className="text-white">{selectedTxn.bankAccountDetails.bankName || '-'}</span>
+                  {/* Crypto Withdrawal Details */}
+                  {selectedTxn.paymentMethod === 'Crypto' || selectedTxn.cryptoDetails ? (
+                    <>
+                      <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                        <Bitcoin size={16} className="text-orange-500" /> Crypto Withdrawal Details
+                      </h3>
+                      <div className="bg-dark-700 rounded-lg p-4 space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Network</span>
+                          <span className="text-orange-400 font-medium">{selectedTxn.cryptoDetails?.network || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 block mb-1">Wallet Address</span>
+                          <span className="text-white font-mono text-xs break-all bg-dark-600 p-2 rounded block">{selectedTxn.cryptoDetails?.address || '-'}</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Account Number</span>
-                        <span className="text-white font-mono">{selectedTxn.bankAccountDetails.accountNumber || '-'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">IFSC Code</span>
-                        <span className="text-white font-mono">{selectedTxn.bankAccountDetails.ifscCode || '-'}</span>
-                      </div>
-                    </div>
-                  ) : selectedTxn.bankAccountDetails?.type === 'UPI' ? (
-                    <div className="bg-dark-700 rounded-lg p-4">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">UPI ID</span>
-                        <span className="text-purple-400 font-mono">{selectedTxn.bankAccountDetails.upiId}</span>
-                      </div>
-                    </div>
-                  ) : userDetails?.bankDetails?.accountNumber ? (
-                    <div className="bg-dark-700 rounded-lg p-4 space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Bank Name</span>
-                        <span className="text-white">{userDetails.bankDetails.bankName || '-'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Account Number</span>
-                        <span className="text-white font-mono">{userDetails.bankDetails.accountNumber || '-'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">IFSC Code</span>
-                        <span className="text-white font-mono">{userDetails.bankDetails.ifscCode || '-'}</span>
-                      </div>
-                    </div>
-                  ) : userDetails?.upiId ? (
-                    <div className="bg-dark-700 rounded-lg p-4">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">UPI ID</span>
-                        <span className="text-purple-400 font-mono">{userDetails.upiId}</span>
-                      </div>
-                    </div>
+                    </>
                   ) : (
-                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                      <p className="text-yellow-400 text-sm">⚠️ No payment details available for this withdrawal</p>
-                    </div>
+                    <>
+                      <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                        {selectedTxn.bankAccountDetails?.type === 'UPI' ? (
+                          <><Smartphone size={16} /> UPI Details</>
+                        ) : (
+                          <><Building2 size={16} /> Bank Details</>
+                        )}
+                      </h3>
+                      
+                      {/* Show bank details from transaction if available */}
+                      {selectedTxn.bankAccountDetails?.type === 'Bank' ? (
+                        <div className="bg-dark-700 rounded-lg p-4 space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Bank Name</span>
+                            <span className="text-white">{selectedTxn.bankAccountDetails.bankName || '-'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Account Number</span>
+                            <span className="text-white font-mono">{selectedTxn.bankAccountDetails.accountNumber || '-'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">IFSC Code</span>
+                            <span className="text-white font-mono">{selectedTxn.bankAccountDetails.ifscCode || '-'}</span>
+                          </div>
+                        </div>
+                      ) : selectedTxn.bankAccountDetails?.type === 'UPI' ? (
+                        <div className="bg-dark-700 rounded-lg p-4">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">UPI ID</span>
+                            <span className="text-purple-400 font-mono">{selectedTxn.bankAccountDetails.upiId}</span>
+                          </div>
+                        </div>
+                      ) : userDetails?.bankDetails?.accountNumber ? (
+                        <div className="bg-dark-700 rounded-lg p-4 space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Bank Name</span>
+                            <span className="text-white">{userDetails.bankDetails.bankName || '-'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Account Number</span>
+                            <span className="text-white font-mono">{userDetails.bankDetails.accountNumber || '-'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">IFSC Code</span>
+                            <span className="text-white font-mono">{userDetails.bankDetails.ifscCode || '-'}</span>
+                          </div>
+                        </div>
+                      ) : userDetails?.upiId ? (
+                        <div className="bg-dark-700 rounded-lg p-4">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">UPI ID</span>
+                            <span className="text-purple-400 font-mono">{userDetails.upiId}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                          <p className="text-yellow-400 text-sm">⚠️ No payment details available for this withdrawal</p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}

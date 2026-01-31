@@ -2,6 +2,7 @@ import express from 'express'
 import PaymentMethod from '../models/PaymentMethod.js'
 import Currency from '../models/Currency.js'
 import UserBankAccount from '../models/UserBankAccount.js'
+import UserCryptoWallet from '../models/UserCryptoWallet.js'
 
 const router = express.Router()
 
@@ -433,6 +434,155 @@ router.put('/admin/bank-requests/:id/reject', async (req, res) => {
     res.json({ success: true, message: 'Bank account rejected', account })
   } catch (error) {
     res.status(500).json({ message: 'Error rejecting bank request', error: error.message })
+  }
+})
+
+// ==================== USER CRYPTO WALLET ROUTES ====================
+
+// GET /api/payment-methods/user-crypto/:userId - Get user's crypto wallets
+router.get('/user-crypto/:userId', async (req, res) => {
+  try {
+    const wallets = await UserCryptoWallet.find({ userId: req.params.userId }).sort({ createdAt: -1 })
+    res.json({ wallets })
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching crypto wallets', error: error.message })
+  }
+})
+
+// GET /api/payment-methods/user-crypto/:userId/approved - Get user's approved crypto wallets (for withdrawal)
+router.get('/user-crypto/:userId/approved', async (req, res) => {
+  try {
+    const wallets = await UserCryptoWallet.find({ 
+      userId: req.params.userId, 
+      status: 'Approved',
+      isActive: true 
+    }).sort({ createdAt: -1 })
+    res.json({ wallets })
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching crypto wallets', error: error.message })
+  }
+})
+
+// POST /api/payment-methods/user-crypto - Submit crypto wallet for approval
+router.post('/user-crypto', async (req, res) => {
+  try {
+    const { userId, network, walletAddress } = req.body
+
+    if (!userId || !network || !walletAddress) {
+      return res.status(400).json({ message: 'User ID, network and wallet address are required' })
+    }
+
+    // Check for duplicate
+    const existing = await UserCryptoWallet.findOne({
+      userId,
+      network,
+      walletAddress,
+      status: { $ne: 'Rejected' }
+    })
+
+    if (existing) {
+      return res.status(400).json({ message: 'This wallet is already submitted or approved' })
+    }
+
+    const wallet = new UserCryptoWallet({
+      userId,
+      network,
+      walletAddress,
+      status: 'Pending'
+    })
+
+    await wallet.save()
+    res.status(201).json({ 
+      success: true,
+      message: 'Crypto wallet submitted for approval',
+      wallet 
+    })
+  } catch (error) {
+    res.status(500).json({ message: 'Error submitting crypto wallet', error: error.message })
+  }
+})
+
+// DELETE /api/payment-methods/user-crypto/:id - Delete user crypto wallet
+router.delete('/user-crypto/:id', async (req, res) => {
+  try {
+    const wallet = await UserCryptoWallet.findByIdAndDelete(req.params.id)
+    if (!wallet) {
+      return res.status(404).json({ message: 'Crypto wallet not found' })
+    }
+    res.json({ success: true, message: 'Crypto wallet deleted' })
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting crypto wallet', error: error.message })
+  }
+})
+
+// ==================== ADMIN CRYPTO WALLET ROUTES ====================
+
+// GET /api/payment-methods/admin/crypto-requests - Get all crypto wallet requests
+router.get('/admin/crypto-requests', async (req, res) => {
+  try {
+    const { status } = req.query
+    const query = status ? { status } : {}
+    
+    const requests = await UserCryptoWallet.find(query)
+      .populate('userId', 'firstName lastName email phone')
+      .sort({ createdAt: -1 })
+    
+    res.json({ requests })
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching crypto requests', error: error.message })
+  }
+})
+
+// GET /api/payment-methods/admin/crypto-requests/stats - Get crypto request stats
+router.get('/admin/crypto-requests/stats', async (req, res) => {
+  try {
+    const pending = await UserCryptoWallet.countDocuments({ status: 'Pending' })
+    const approved = await UserCryptoWallet.countDocuments({ status: 'Approved' })
+    const rejected = await UserCryptoWallet.countDocuments({ status: 'Rejected' })
+    
+    res.json({ stats: { pending, approved, rejected, total: pending + approved + rejected } })
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching stats', error: error.message })
+  }
+})
+
+// PUT /api/payment-methods/admin/crypto-requests/:id/approve - Approve crypto wallet
+router.put('/admin/crypto-requests/:id/approve', async (req, res) => {
+  try {
+    const wallet = await UserCryptoWallet.findById(req.params.id)
+    if (!wallet) {
+      return res.status(404).json({ message: 'Crypto wallet not found' })
+    }
+
+    wallet.status = 'Approved'
+    wallet.isActive = true
+    wallet.approvedAt = new Date()
+    await wallet.save()
+
+    res.json({ success: true, message: 'Crypto wallet approved', wallet })
+  } catch (error) {
+    res.status(500).json({ message: 'Error approving crypto wallet', error: error.message })
+  }
+})
+
+// PUT /api/payment-methods/admin/crypto-requests/:id/reject - Reject crypto wallet
+router.put('/admin/crypto-requests/:id/reject', async (req, res) => {
+  try {
+    const { reason } = req.body
+    const wallet = await UserCryptoWallet.findById(req.params.id)
+    if (!wallet) {
+      return res.status(404).json({ message: 'Crypto wallet not found' })
+    }
+
+    wallet.status = 'Rejected'
+    wallet.isActive = false
+    wallet.rejectedAt = new Date()
+    wallet.rejectionReason = reason || 'Rejected by admin'
+    await wallet.save()
+
+    res.json({ success: true, message: 'Crypto wallet rejected', wallet })
+  } catch (error) {
+    res.status(500).json({ message: 'Error rejecting crypto wallet', error: error.message })
   }
 })
 

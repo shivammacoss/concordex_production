@@ -64,8 +64,8 @@ const WalletPage = () => {
   const [selectedBankAccount, setSelectedBankAccount] = useState(null)
   const [withdrawalType, setWithdrawalType] = useState('') // 'local' or 'crypto'
   const [withdrawalNote, setWithdrawalNote] = useState('')
-  const [cryptoAddress, setCryptoAddress] = useState('')
-  const [cryptoNetwork, setCryptoNetwork] = useState('')
+  const [userCryptoWallets, setUserCryptoWallets] = useState([])
+  const [selectedCryptoWallet, setSelectedCryptoWallet] = useState(null)
   const fileInputRef = useRef(null)
   
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'))
@@ -153,6 +153,7 @@ const WalletPage = () => {
       fetchWallet()
       fetchTransactions()
       fetchUserBankAccounts()
+      fetchUserCryptoWallets()
     }
     fetchPaymentMethods()
     fetchCurrencies()
@@ -162,9 +163,21 @@ const WalletPage = () => {
     try {
       const res = await fetch(`${API_URL}/payment-methods/user-banks/${user._id}/approved`)
       const data = await res.json()
-      setUserBankAccounts(data.accounts || [])
+      // Filter to only show LOCAL type wallets for local withdrawal
+      const localAccounts = (data.accounts || []).filter(acc => acc.type === 'Bank Transfer' || acc.type === 'UPI')
+      setUserBankAccounts(localAccounts)
     } catch (error) {
       console.error('Error fetching user bank accounts:', error)
+    }
+  }
+
+  const fetchUserCryptoWallets = async () => {
+    try {
+      const res = await fetch(`${API_URL}/payment-methods/user-crypto/${user._id}/approved`)
+      const data = await res.json()
+      setUserCryptoWallets(data.wallets || [])
+    } catch (error) {
+      console.error('Error fetching user crypto wallets:', error)
     }
   }
 
@@ -345,15 +358,9 @@ const WalletPage = () => {
       return
     }
 
-    if (withdrawalType === 'crypto') {
-      if (!cryptoAddress) {
-        setError('Please enter crypto wallet address')
-        return
-      }
-      if (!cryptoNetwork) {
-        setError('Please select crypto network')
-        return
-      }
+    if (withdrawalType === 'crypto' && !selectedCryptoWallet) {
+      setError('Please select a crypto wallet')
+      return
     }
 
     try {
@@ -372,9 +379,10 @@ const WalletPage = () => {
           : { type: 'Bank', bankName: selectedBankAccount.bankName, accountNumber: selectedBankAccount.accountNumber, ifscCode: selectedBankAccount.ifscCode }
       } else {
         withdrawalData.paymentMethod = 'Crypto'
+        withdrawalData.cryptoWalletId = selectedCryptoWallet._id
         withdrawalData.cryptoDetails = {
-          address: cryptoAddress,
-          network: cryptoNetwork
+          network: selectedCryptoWallet.network,
+          address: selectedCryptoWallet.walletAddress
         }
       }
 
@@ -390,10 +398,9 @@ const WalletPage = () => {
         setShowWithdrawModal(false)
         setAmount('')
         setSelectedBankAccount(null)
+        setSelectedCryptoWallet(null)
         setWithdrawalType('')
         setWithdrawalNote('')
-        setCryptoAddress('')
-        setCryptoNetwork('')
         fetchWallet()
         fetchTransactions()
         setTimeout(() => setSuccess(''), 3000)
@@ -988,10 +995,9 @@ const WalletPage = () => {
                   setShowWithdrawModal(false)
                   setAmount('')
                   setSelectedBankAccount(null)
+                  setSelectedCryptoWallet(null)
                   setWithdrawalType('')
                   setWithdrawalNote('')
-                  setCryptoAddress('')
-                  setCryptoNetwork('')
                   setError('')
                 }}
                 className="text-gray-400 hover:text-white"
@@ -1096,33 +1102,44 @@ const WalletPage = () => {
               </div>
             )}
 
-            {/* Crypto Withdrawal Fields */}
+            {/* Crypto Withdrawal - Wallet Selection */}
             {withdrawalType === 'crypto' && (
-              <div className="space-y-4 mb-4">
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">Select Network</label>
-                  <select
-                    value={cryptoNetwork}
-                    onChange={(e) => setCryptoNetwork(e.target.value)}
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-green"
-                  >
-                    <option value="">Select Network</option>
-                    <option value="TRC20">TRC20 (USDT)</option>
-                    <option value="ERC20">ERC20 (USDT/ETH)</option>
-                    <option value="BEP20">BEP20 (BSC)</option>
-                    <option value="BTC">Bitcoin (BTC)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">Wallet Address</label>
-                  <input
-                    type="text"
-                    value={cryptoAddress}
-                    onChange={(e) => setCryptoAddress(e.target.value)}
-                    placeholder="Enter your crypto wallet address"
-                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-accent-green"
-                  />
-                </div>
+              <div className="mb-4">
+                <label className="block text-gray-400 text-sm mb-2">Select Crypto Wallet</label>
+                {userCryptoWallets.length === 0 ? (
+                  <div className="p-4 bg-dark-700 rounded-lg border border-gray-700 text-center">
+                    <p className="text-gray-400 mb-3">No approved crypto wallets found.</p>
+                    <button
+                      onClick={() => {
+                        setShowWithdrawModal(false)
+                        navigate('/profile')
+                      }}
+                      className="bg-accent-green text-black px-4 py-2 rounded-lg font-medium hover:bg-accent-green/90 transition-colors"
+                    >
+                      Add Crypto Wallet
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {userCryptoWallets.map((wallet) => (
+                      <button
+                        key={wallet._id}
+                        onClick={() => setSelectedCryptoWallet(wallet)}
+                        className={`w-full p-3 rounded-lg border transition-colors flex items-center gap-3 text-left ${
+                          selectedCryptoWallet?._id === wallet._id
+                            ? 'border-accent-green bg-accent-green/10'
+                            : 'border-gray-700 bg-dark-700 hover:border-gray-600'
+                        }`}
+                      >
+                        <Wallet size={20} className="text-orange-400" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-medium">{wallet.network}</p>
+                          <p className="text-gray-400 text-sm font-mono truncate">{wallet.walletAddress}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1146,10 +1163,9 @@ const WalletPage = () => {
                   setShowWithdrawModal(false)
                   setAmount('')
                   setSelectedBankAccount(null)
+                  setSelectedCryptoWallet(null)
                   setWithdrawalType('')
                   setWithdrawalNote('')
-                  setCryptoAddress('')
-                  setCryptoNetwork('')
                   setError('')
                 }}
                 className="flex-1 bg-dark-700 text-white py-3 rounded-lg hover:bg-dark-600 transition-colors"
