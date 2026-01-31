@@ -118,6 +118,13 @@ server {
         proxy_cache_bypass $http_upgrade;
     }
     
+    # Serve uploaded files (screenshots, etc.) from backend
+    location /uploads {
+        proxy_pass http://localhost:5001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+    }
+    
     # WebSocket for real-time prices
     location /socket.io {
         proxy_pass http://localhost:5001;

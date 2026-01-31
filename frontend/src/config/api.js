@@ -2,6 +2,15 @@
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 export const API_URL = `${API_BASE_URL}/api`
 
+// Helper to construct full URL for uploaded files (screenshots, etc.)
+export const getUploadUrl = (path) => {
+  if (!path) return null
+  // Already a full URL or data URL
+  if (path.startsWith('http') || path.startsWith('data:')) return path
+  // Relative path - prepend base URL
+  return `${API_BASE_URL}${path}`
+}
+
 // Helper function for authenticated admin API requests
 export const adminFetch = async (endpoint, options = {}) => {
   const token = localStorage.getItem('adminToken')
