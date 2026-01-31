@@ -27,9 +27,17 @@ const AdminCopyTrade = () => {
   const [loading, setLoading] = useState(true)
   const [selectedMaster, setSelectedMaster] = useState(null)
   const [showApproveModal, setShowApproveModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [approveForm, setApproveForm] = useState({
     approvedCommissionPercentage: 10,
     adminSharePercentage: 30
+  })
+  const [editForm, setEditForm] = useState({
+    approvedCommissionPercentage: 0,
+    adminSharePercentage: 0,
+    visibility: 'PUBLIC',
+    displayName: '',
+    description: ''
   })
 
   const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}')
@@ -173,6 +181,42 @@ const AdminCopyTrade = () => {
     } catch (error) {
       console.error('Error activating master:', error)
       alert('Failed to activate master')
+    }
+  }
+
+  const openEditModal = (master) => {
+    setSelectedMaster(master)
+    setEditForm({
+      approvedCommissionPercentage: master.approvedCommissionPercentage || master.requestedCommissionPercentage || 0,
+      adminSharePercentage: master.adminSharePercentage || 30,
+      visibility: master.visibility || 'PUBLIC',
+      displayName: master.displayName || '',
+      description: master.description || ''
+    })
+    setShowEditModal(true)
+  }
+
+  const handleUpdateMaster = async () => {
+    if (!selectedMaster) return
+    try {
+      const res = await fetch(`${API_URL}/copy/admin/update-master/${selectedMaster._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm)
+      })
+      const data = await res.json()
+      if (res.ok && data.master) {
+        alert('Master updated successfully!')
+        setShowEditModal(false)
+        setSelectedMaster(null)
+        fetchMasters()
+      } else {
+        console.error('Update failed:', data)
+        alert(data.message || data.error || 'Failed to update master')
+      }
+    } catch (error) {
+      console.error('Error updating master:', error)
+      alert('Failed to update master: ' + error.message)
     }
   }
 
@@ -334,6 +378,7 @@ const AdminCopyTrade = () => {
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-1">
+                        <button onClick={() => openEditModal(master)} className="p-2 hover:bg-dark-600 rounded-lg text-gray-400 hover:text-blue-500" title="View/Edit"><Eye size={16} /></button>
                         {master.status === 'PENDING' && (
                           <>
                             <button onClick={() => { setSelectedMaster(master); setShowApproveModal(true) }} className="p-2 hover:bg-dark-600 rounded-lg text-gray-400 hover:text-green-500" title="Approve"><Check size={16} /></button>
@@ -414,6 +459,116 @@ const AdminCopyTrade = () => {
             <div className="flex gap-3 mt-6">
               <button onClick={() => setShowApproveModal(false)} className="flex-1 bg-dark-700 text-white py-2 rounded-lg">Cancel</button>
               <button onClick={handleApprove} className="flex-1 bg-green-500 text-white py-2 rounded-lg">Approve</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Master Modal */}
+      {showEditModal && selectedMaster && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-lg border border-gray-700">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-white">Edit Master: {selectedMaster.displayName}</h2>
+              <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-dark-600 rounded-lg text-gray-400 hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
+            
+            {/* Master Info */}
+            <div className="bg-dark-700 rounded-lg p-4 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center">
+                  <span className="text-purple-500 font-bold text-lg">{selectedMaster.displayName?.charAt(0)}</span>
+                </div>
+                <div>
+                  <p className="text-white font-medium">{selectedMaster.userId?.firstName} {selectedMaster.userId?.lastName}</p>
+                  <p className="text-gray-500 text-sm">{selectedMaster.userId?.email}</p>
+                </div>
+                <span className={`ml-auto px-3 py-1 rounded-full text-xs ${getStatusColor(selectedMaster.status)}`}>{selectedMaster.status}</span>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-gray-400 text-sm mb-1 block">Display Name</label>
+                <input 
+                  type="text" 
+                  value={editForm.displayName} 
+                  onChange={(e) => setEditForm(prev => ({ ...prev, displayName: e.target.value }))} 
+                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white" 
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-gray-400 text-sm mb-1 block">Commission Percentage (%)</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="50"
+                    value={editForm.approvedCommissionPercentage} 
+                    onChange={(e) => setEditForm(prev => ({ ...prev, approvedCommissionPercentage: parseFloat(e.target.value) || 0 }))} 
+                    className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white" 
+                  />
+                  <p className="text-gray-500 text-xs mt-1">Master earns this % from follower profits</p>
+                </div>
+                <div>
+                  <label className="text-gray-400 text-sm mb-1 block">Admin Share (%)</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="100"
+                    value={editForm.adminSharePercentage} 
+                    onChange={(e) => setEditForm(prev => ({ ...prev, adminSharePercentage: parseFloat(e.target.value) || 0 }))} 
+                    className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white" 
+                  />
+                  <p className="text-gray-500 text-xs mt-1">Admin takes this % of commission</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-1 block">Visibility</label>
+                <select 
+                  value={editForm.visibility} 
+                  onChange={(e) => setEditForm(prev => ({ ...prev, visibility: e.target.value }))} 
+                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                >
+                  <option value="PUBLIC">Public</option>
+                  <option value="PRIVATE">Private</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-1 block">Description</label>
+                <textarea 
+                  value={editForm.description} 
+                  onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))} 
+                  rows={3}
+                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white resize-none" 
+                />
+              </div>
+            </div>
+
+            {/* Stats Summary */}
+            <div className="grid grid-cols-3 gap-4 mt-6 p-4 bg-dark-700 rounded-lg">
+              <div className="text-center">
+                <p className="text-gray-500 text-xs">Followers</p>
+                <p className="text-white font-bold">{selectedMaster.stats?.activeFollowers || 0}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-gray-500 text-xs">Total Trades</p>
+                <p className="text-white font-bold">{selectedMaster.stats?.totalTrades || 0}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-gray-500 text-xs">Win Rate</p>
+                <p className="text-white font-bold">{selectedMaster.stats?.winRate?.toFixed(1) || 0}%</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowEditModal(false)} className="flex-1 bg-dark-700 text-white py-2 rounded-lg hover:bg-dark-600 transition-colors">Cancel</button>
+              <button onClick={handleUpdateMaster} className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors">Save Changes</button>
             </div>
           </div>
         </div>

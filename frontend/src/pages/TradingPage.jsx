@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Search, Star, X, Plus, Minus, Settings, Home, Wallet, LayoutGrid, BarChart3, Pencil, Trophy, AlertTriangle, Sun, Moon } from 'lucide-react'
+import { Search, Star, X, Plus, Minus, Settings, Home, Wallet, LayoutGrid, BarChart3, Pencil, Trophy, AlertTriangle, Sun, Moon, ChevronDown } from 'lucide-react'
 import metaApiService from '../services/metaApi'
 import binanceApiService from '../services/binanceApi'
 import priceStreamService from '../services/priceStream'
@@ -15,6 +15,8 @@ const TradingPage = () => {
   const { isDarkMode, toggleDarkMode } = useTheme()
   
   const [account, setAccount] = useState(null)
+  const [allAccounts, setAllAccounts] = useState([]) // All user's trading accounts for dropdown
+  const [showAccountDropdown, setShowAccountDropdown] = useState(false)
   const [challengeAccount, setChallengeAccount] = useState(null)
   const [challengeRules, setChallengeRules] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -105,6 +107,9 @@ const TradingPage = () => {
   const [killSwitchDuration, setKillSwitchDuration] = useState({ value: 30, unit: 'minutes' })
   const [killSwitchTimeLeft, setKillSwitchTimeLeft] = useState('')
   const [globalNotification, setGlobalNotification] = useState('')
+  
+  // Ref for account dropdown click-outside detection
+  const accountDropdownRef = useRef(null)
 
   const categories = ['All', 'Forex', 'Metals', 'Crypto']
 
@@ -160,6 +165,19 @@ const TradingPage = () => {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  // Close account dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (accountDropdownRef.current && !accountDropdownRef.current.contains(event.target)) {
+        setShowAccountDropdown(false)
+      }
+    }
+    if (showAccountDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showAccountDropdown])
 
   // Real-time price updates via WebSocket for institutional-grade streaming
   useEffect(() => {
@@ -959,6 +977,10 @@ const TradingPage = () => {
         // Fetch regular trading account
         const res = await fetch(`${API_URL}/trading-accounts/user/${user._id}`)
         const data = await res.json()
+        // Store all accounts for dropdown
+        const activeAccounts = (data.accounts || []).filter(a => a.status === 'Active')
+        setAllAccounts(activeAccounts)
+        
         const acc = data.accounts?.find(a => a._id === accountId)
         if (acc) {
           setAccount(acc)
@@ -1151,10 +1173,56 @@ const TradingPage = () => {
           <span className={`font-medium text-sm sm:text-base ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedInstrument.symbol}</span>
           {!isMobile && (
             <>
-              <span className={`ml-3 text-xs ${accountType === 'challenge' ? 'text-yellow-500' : 'text-teal-400'}`}>
-                {accountType === 'challenge' ? 'Challenge' : 'Standard'} - {account?.accountId}
-              </span>
-              <span className="text-gray-400 ml-3 text-xs">Balance: <span className="text-white">${accountSummary.balance?.toFixed(2) || '0.00'}</span></span>
+              {/* Account Selector Dropdown */}
+              <div className="relative ml-3" ref={accountDropdownRef}>
+                <button
+                  onClick={() => setShowAccountDropdown(!showAccountDropdown)}
+                  className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${isDarkMode ? 'bg-dark-700 hover:bg-dark-600' : 'bg-gray-100 hover:bg-gray-200'} ${accountType === 'challenge' ? 'text-yellow-500' : 'text-teal-400'}`}
+                >
+                  <span>{accountType === 'challenge' ? 'Challenge' : (account?.accountTypeId?.name || 'Standard')}</span>
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>-</span>
+                  <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{account?.accountId}</span>
+                  {allAccounts.length > 1 && <ChevronDown size={12} className={`transition-transform ${showAccountDropdown ? 'rotate-180' : ''}`} />}
+                </button>
+                
+                {/* Dropdown Menu */}
+                {showAccountDropdown && allAccounts.length > 1 && (
+                  <div className={`absolute top-full left-0 mt-1 w-56 rounded-lg shadow-lg border z-50 ${isDarkMode ? 'bg-dark-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                    <div className={`px-3 py-2 border-b text-xs font-medium ${isDarkMode ? 'text-gray-400 border-gray-700' : 'text-gray-500 border-gray-200'}`}>
+                      Switch Account
+                    </div>
+                    <div className="max-h-48 overflow-y-auto">
+                      {allAccounts.map(acc => (
+                        <button
+                          key={acc._id}
+                          onClick={() => {
+                            setShowAccountDropdown(false)
+                            if (acc._id !== accountId) {
+                              navigate(`/trade/${acc._id}`)
+                            }
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm transition-colors ${
+                            acc._id === accountId 
+                              ? isDarkMode ? 'bg-teal-500/20 text-teal-400' : 'bg-teal-50 text-teal-600'
+                              : isDarkMode ? 'text-white hover:bg-dark-700' : 'text-gray-900 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div>
+                            <span className="font-medium">{acc.accountId}</span>
+                            <span className={`ml-2 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                              {acc.accountTypeId?.name || 'Standard'}
+                            </span>
+                          </div>
+                          <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            ${acc.balance?.toFixed(2) || '0.00'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <span className="text-gray-400 ml-3 text-xs">Balance: <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>${accountSummary.balance?.toFixed(2) || '0.00'}</span></span>
             </>
           )}
           <div className="flex-1" />
@@ -2093,7 +2161,7 @@ const TradingPage = () => {
             </>
           )}
           <div className="flex-1" />
-          {!isMobile && <span className="text-gray-400 shrink-0">Standard - {account?.accountId}</span>}
+          {!isMobile && <span className="text-gray-400 shrink-0">{accountType === 'challenge' ? 'Challenge' : (account?.accountTypeId?.name || 'Standard')} - {account?.accountId}</span>}
           <span className="text-green-500 ml-2 sm:ml-3 shrink-0 flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
             Live

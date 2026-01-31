@@ -586,6 +586,44 @@ router.put('/admin/suspend/:id', async (req, res) => {
   }
 })
 
+// PUT /api/copy/admin/update-master/:id - Update master settings (commission, admin share, etc.)
+router.put('/admin/update-master/:id', async (req, res) => {
+  try {
+    const { approvedCommissionPercentage, adminSharePercentage, visibility, displayName, description } = req.body
+
+    const master = await MasterTrader.findById(req.params.id)
+    if (!master) {
+      return res.status(404).json({ message: 'Master not found' })
+    }
+
+    // Update fields if provided
+    if (approvedCommissionPercentage !== undefined) {
+      master.approvedCommissionPercentage = approvedCommissionPercentage
+    }
+    if (adminSharePercentage !== undefined) {
+      master.adminSharePercentage = adminSharePercentage
+    }
+    if (visibility) {
+      master.visibility = visibility
+    }
+    if (displayName) {
+      master.displayName = displayName
+    }
+    if (description !== undefined) {
+      master.description = description
+    }
+
+    await master.save()
+
+    res.json({ 
+      message: 'Master settings updated successfully', 
+      master 
+    })
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating master', error: error.message })
+  }
+})
+
 // PUT /api/copy/admin/activate/:id - Activate suspended/rejected master
 router.put('/admin/activate/:id', async (req, res) => {
   try {

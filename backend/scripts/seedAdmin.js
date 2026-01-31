@@ -83,7 +83,7 @@ const seedAdmin = async () => {
     })
     await wallet.save()
 
-    console.log('✅ Super admin created successfully!')
+    console.log(' Super admin created successfully!')
     console.log('================================')
     console.log(`  Email: ${adminData.email}`)
     console.log(`  Password: ${adminData.password}`)
@@ -92,7 +92,7 @@ const seedAdmin = async () => {
 
     process.exit(0)
   } catch (error) {
-    console.error('❌ Error seeding admin:', error.message)
+    console.error(' Error seeding admin:', error.message)
     process.exit(1)
   }
 }
