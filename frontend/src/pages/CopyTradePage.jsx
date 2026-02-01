@@ -176,12 +176,8 @@ const CopyTradePage = () => {
       alert('Please select a trading account')
       return
     }
-    if (masterForm.requestedCommissionPercentage > 50) {
-      alert('Commission cannot exceed 50%')
-      return
-    }
-    if (masterForm.requestedCommissionPercentage < 0) {
-      alert('Commission cannot be negative')
+    if (masterForm.requestedCommissionPercentage < 5 || masterForm.requestedCommissionPercentage > 50) {
+      alert('Commission must be between 5% and 50%')
       return
     }
     
@@ -961,11 +957,11 @@ const CopyTradePage = () => {
                       setMasterForm(prev => ({ ...prev, requestedCommissionPercentage: value }))
                     }
                   }}
-                  min="0"
+                  min="5"
                   max="50"
                   className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
                 />
-                <p className="text-gray-500 text-xs mt-1">Commission you'll earn from followers' profits (0-50% maximum)</p>
+                <p className="text-gray-500 text-xs mt-1">Commission you'll earn from followers' profits (5-50%)</p>
               </div>
 
               <div>

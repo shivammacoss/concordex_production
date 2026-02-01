@@ -17,7 +17,7 @@ const copySettingsSchema = new mongoose.Schema({
   },
   // Commission settings
   commissionSettings: {
-    maxCommissionPercentage: { type: Number, default: 30 },
+    maxCommissionPercentage: { type: Number, default: 50 },
     minCommissionPercentage: { type: Number, default: 5 },
     defaultAdminSharePercentage: { type: Number, default: 30 },
     minPayoutAmount: { type: Number, default: 50 }

@@ -18,6 +18,7 @@ import concorddexLogo from '../assets/concorddex.png'
 const LandingPage = () => {
   const { isDark, toggleTheme } = useTheme()
   const [currentStat, setCurrentStat] = useState(0)
+  const [visibleLegalSection, setVisibleLegalSection] = useState(null)
 
   const stats = [
     { value: '$2.5B+', label: 'Trading Volume' },
@@ -54,12 +55,7 @@ const LandingPage = () => {
             <img src={concorddexLogo} alt="Concorddex" className="h-12 sm:h-16" />
           </div>
           
-          <div className="hidden lg:flex items-center gap-8">
-            <a href="#features" className="text-sm font-medium transition-colors hover:text-yellow-500" style={{ color: 'var(--text-secondary)' }}>Features</a>
-            <a href="#markets" className="text-sm font-medium transition-colors hover:text-yellow-500" style={{ color: 'var(--text-secondary)' }}>Markets</a>
-            <a href="#testimonials" className="text-sm font-medium transition-colors hover:text-yellow-500" style={{ color: 'var(--text-secondary)' }}>Testimonials</a>
-          </div>
-          
+                    
           <div className="flex items-center gap-2 sm:gap-3">
             <a 
               href="/login" 
@@ -466,18 +462,6 @@ const LandingPage = () => {
             </div>
           </div>
           
-          <div className="p-8 rounded-3xl mb-12" style={{ background: 'linear-gradient(135deg, rgba(20, 20, 20, 0.9) 0%, rgba(10, 10, 10, 0.9) 100%)', border: '1px solid rgba(212, 175, 55, 0.2)' }}>
-            <h3 className="text-xl font-bold mb-6 gold-shine-text">Why Trade With Us?</h3>
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {['Advanced trading platforms (MT4 / MT5)', 'Deep liquidity and fast execution', 'Multiple account types for different trading styles', 'Dedicated customer and IB support', 'Education and tools to support trader growth'].map((item, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <CheckCircle size={20} className="shrink-0 mt-0.5" style={{ color: '#22c55e' }} />
-                  <span style={{ color: 'var(--text-secondary)' }}>{item}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          
           <div className="text-center p-8 rounded-3xl" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(20, 20, 20, 0.9) 100%)', border: '1px solid rgba(212, 175, 55, 0.3)' }}>
             <h3 className="text-xl font-bold mb-4">Our Vision</h3>
             <p style={{ color: 'var(--text-secondary)' }}>Our vision is to become a globally recognized forex broker known for reliability, transparency, and trader satisfaction. We continuously evolve to meet the needs of modern traders in a fast-changing financial world.</p>
@@ -567,6 +551,7 @@ const LandingPage = () => {
       </section>
 
       {/* Terms of Service Section */}
+      {visibleLegalSection === 'terms' && (
       <section id="terms" className="py-20 sm:py-32 px-4 sm:px-6 relative" style={{ background: 'linear-gradient(180deg, #0a0a0a 0%, #000000 100%)' }}>
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
@@ -612,8 +597,10 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+      )}
 
       {/* Privacy Policy Section */}
+      {visibleLegalSection === 'privacy' && (
       <section id="privacy" className="py-20 sm:py-32 px-4 sm:px-6 relative" style={{ background: 'linear-gradient(180deg, #000000 0%, #0a0a0a 100%)' }}>
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
@@ -639,8 +626,10 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+      )}
 
       {/* Risk Disclosure Section */}
+      {visibleLegalSection === 'risk-disclosure' && (
       <section id="risk-disclosure" className="py-20 sm:py-32 px-4 sm:px-6 relative" style={{ background: 'linear-gradient(180deg, #0a0a0a 0%, #000000 100%)' }}>
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
@@ -664,8 +653,10 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+      )}
 
       {/* AML Policy Section */}
+      {visibleLegalSection === 'aml-policy' && (
       <section id="aml-policy" className="py-20 sm:py-32 px-4 sm:px-6 relative" style={{ background: 'linear-gradient(180deg, #000000 0%, #0a0a0a 100%)' }}>
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
@@ -711,6 +702,7 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+      )}
 
       {/* Footer - Premium Design */}
       <footer className="py-16 sm:py-20 px-4 sm:px-6 relative" style={{ background: 'linear-gradient(180deg, #0a0a0a 0%, #000000 100%)', borderTop: '1px solid rgba(212, 175, 55, 0.2)' }}>
@@ -754,10 +746,10 @@ const LandingPage = () => {
             <div>
               <h4 className="font-bold mb-6 text-base gold-shine-text">Legal</h4>
               <ul className="space-y-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                <li><a href="#terms" className="transition-colors hover:text-yellow-400">Terms of Service</a></li>
-                <li><a href="#privacy" className="transition-colors hover:text-yellow-400">Privacy Policy</a></li>
-                <li><a href="#risk-disclosure" className="transition-colors hover:text-yellow-400">Risk Disclosure</a></li>
-                <li><a href="#aml-policy" className="transition-colors hover:text-yellow-400">AML Policy</a></li>
+                <li><a href="#terms" onClick={() => setVisibleLegalSection('terms')} className="transition-colors hover:text-yellow-400 cursor-pointer">Terms of Service</a></li>
+                <li><a href="#privacy" onClick={() => setVisibleLegalSection('privacy')} className="transition-colors hover:text-yellow-400 cursor-pointer">Privacy Policy</a></li>
+                <li><a href="#risk-disclosure" onClick={() => setVisibleLegalSection('risk-disclosure')} className="transition-colors hover:text-yellow-400 cursor-pointer">Risk Disclosure</a></li>
+                <li><a href="#aml-policy" onClick={() => setVisibleLegalSection('aml-policy')} className="transition-colors hover:text-yellow-400 cursor-pointer">AML Policy</a></li>
               </ul>
             </div>
           </div>

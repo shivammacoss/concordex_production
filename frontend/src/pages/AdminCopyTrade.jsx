@@ -191,7 +191,8 @@ const AdminCopyTrade = () => {
       adminSharePercentage: master.adminSharePercentage || 30,
       visibility: master.visibility || 'PUBLIC',
       displayName: master.displayName || '',
-      description: master.description || ''
+      description: master.description || '',
+      commissionPaymentFrequency: master.commissionPaymentFrequency || 'daily'
     })
     setShowEditModal(true)
   }
@@ -537,6 +538,35 @@ const AdminCopyTrade = () => {
                   <option value="PUBLIC">Public</option>
                   <option value="PRIVATE">Private</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-1 block">Commission Payment Frequency</label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(prev => ({ ...prev, commissionPaymentFrequency: 'daily' }))}
+                    className={`flex-1 py-2 rounded-lg border transition-colors ${
+                      editForm.commissionPaymentFrequency === 'daily'
+                        ? 'border-yellow-500 bg-yellow-500/20 text-yellow-500'
+                        : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                    }`}
+                  >
+                    Daily
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(prev => ({ ...prev, commissionPaymentFrequency: 'weekly' }))}
+                    className={`flex-1 py-2 rounded-lg border transition-colors ${
+                      editForm.commissionPaymentFrequency === 'weekly'
+                        ? 'border-yellow-500 bg-yellow-500/20 text-yellow-500'
+                        : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                    }`}
+                  >
+                    Weekly
+                  </button>
+                </div>
+                <p className="text-gray-500 text-xs mt-1">How often commission payments are processed</p>
               </div>
 
               <div>

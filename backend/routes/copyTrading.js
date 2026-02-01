@@ -589,7 +589,7 @@ router.put('/admin/suspend/:id', async (req, res) => {
 // PUT /api/copy/admin/update-master/:id - Update master settings (commission, admin share, etc.)
 router.put('/admin/update-master/:id', async (req, res) => {
   try {
-    const { approvedCommissionPercentage, adminSharePercentage, visibility, displayName, description } = req.body
+    const { approvedCommissionPercentage, adminSharePercentage, visibility, displayName, description, commissionPaymentFrequency } = req.body
 
     const master = await MasterTrader.findById(req.params.id)
     if (!master) {
@@ -611,6 +611,9 @@ router.put('/admin/update-master/:id', async (req, res) => {
     }
     if (description !== undefined) {
       master.description = description
+    }
+    if (commissionPaymentFrequency) {
+      master.commissionPaymentFrequency = commissionPaymentFrequency
     }
 
     await master.save()
