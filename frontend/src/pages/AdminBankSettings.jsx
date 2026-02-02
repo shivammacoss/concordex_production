@@ -49,10 +49,15 @@ const AdminBankSettings = () => {
   })
 
   // Bank requests states
-  const [activeTab, setActiveTab] = useState('methods') // methods, requests
+  const [activeTab, setActiveTab] = useState('methods') // methods, requests, crypto-requests
   const [bankRequests, setBankRequests] = useState([])
   const [requestStats, setRequestStats] = useState({ pending: 0, approved: 0, rejected: 0 })
   const [requestFilter, setRequestFilter] = useState('Pending')
+
+  // Crypto wallet requests states
+  const [cryptoRequests, setCryptoRequests] = useState([])
+  const [cryptoRequestStats, setCryptoRequestStats] = useState({ pending: 0, approved: 0, rejected: 0 })
+  const [cryptoRequestFilter, setCryptoRequestFilter] = useState('Pending')
   
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
@@ -63,11 +68,17 @@ const AdminBankSettings = () => {
     fetchCurrencyMarkups()
     fetchBankRequests()
     fetchRequestStats()
+    fetchCryptoRequests()
+    fetchCryptoRequestStats()
   }, [])
 
   useEffect(() => {
     fetchBankRequests()
   }, [requestFilter])
+
+  useEffect(() => {
+    fetchCryptoRequests()
+  }, [cryptoRequestFilter])
 
   const fetchBankRequests = async () => {
     try {
@@ -86,6 +97,64 @@ const AdminBankSettings = () => {
       setRequestStats(data.stats || { pending: 0, approved: 0, rejected: 0 })
     } catch (error) {
       console.error('Error fetching stats:', error)
+    }
+  }
+
+  // Crypto wallet request functions
+  const fetchCryptoRequests = async () => {
+    try {
+      const res = await fetch(`${API_URL}/payment-methods/admin/crypto-requests?status=${cryptoRequestFilter}`)
+      const data = await res.json()
+      setCryptoRequests(data.requests || [])
+    } catch (error) {
+      console.error('Error fetching crypto requests:', error)
+    }
+  }
+
+  const fetchCryptoRequestStats = async () => {
+    try {
+      const res = await fetch(`${API_URL}/payment-methods/admin/crypto-requests/stats`)
+      const data = await res.json()
+      setCryptoRequestStats(data.stats || { pending: 0, approved: 0, rejected: 0 })
+    } catch (error) {
+      console.error('Error fetching crypto stats:', error)
+    }
+  }
+
+  const handleApproveCryptoRequest = async (id) => {
+    try {
+      const res = await fetch(`${API_URL}/payment-methods/admin/crypto-requests/${id}/approve`, {
+        method: 'PUT'
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Crypto wallet approved!')
+        fetchCryptoRequests()
+        fetchCryptoRequestStats()
+      }
+    } catch (error) {
+      toast.error('Error approving crypto wallet')
+    }
+  }
+
+  const handleRejectCryptoRequest = async (id) => {
+    const reason = prompt('Enter rejection reason:')
+    if (!reason) return
+
+    try {
+      const res = await fetch(`${API_URL}/payment-methods/admin/crypto-requests/${id}/reject`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason })
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Crypto wallet rejected!')
+        fetchCryptoRequests()
+        fetchCryptoRequestStats()
+      }
+    } catch (error) {
+      toast.error('Error rejecting crypto wallet')
     }
   }
 
@@ -441,6 +510,21 @@ const AdminBankSettings = () => {
             </span>
           )}
         </button>
+        <button
+          onClick={() => setActiveTab('crypto-requests')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+            activeTab === 'crypto-requests' 
+              ? 'bg-orange-500 text-white' 
+              : 'bg-dark-800 text-gray-400 hover:text-white'
+          }`}
+        >
+          Crypto Requests
+          {cryptoRequestStats.pending > 0 && (
+            <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
+              {cryptoRequestStats.pending}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Bank Requests Tab */}
@@ -546,6 +630,108 @@ const AdminBankSettings = () => {
                         </button>
                         <button
                           onClick={() => handleRejectRequest(req._id)}
+                          className="flex-1 sm:flex-none px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center gap-1"
+                        >
+                          <X size={16} /> Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Crypto Requests Tab */}
+      {activeTab === 'crypto-requests' && (
+        <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 border-b border-gray-800">
+            <div>
+              <h2 className="text-white font-semibold text-lg">User Crypto Wallet Requests</h2>
+              <p className="text-gray-500 text-sm">Approve or reject user crypto wallet submissions</p>
+            </div>
+            <div className="flex gap-2">
+              {['Pending', 'Approved', 'Rejected'].map(status => (
+                <button
+                  key={status}
+                  onClick={() => setCryptoRequestFilter(status)}
+                  className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                    cryptoRequestFilter === status
+                      ? status === 'Pending' ? 'bg-yellow-500 text-black' :
+                        status === 'Approved' ? 'bg-green-500 text-white' :
+                        'bg-red-500 text-white'
+                      : 'bg-dark-700 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {status} ({cryptoRequestStats[status.toLowerCase()] || 0})
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-5 space-y-4">
+            {cryptoRequests.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No {cryptoRequestFilter.toLowerCase()} crypto wallet requests</p>
+              </div>
+            ) : (
+              cryptoRequests.map(req => (
+                <div key={req._id} className="bg-dark-700 rounded-lg border border-gray-700 p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          req.network === 'LOCAL' 
+                            ? 'bg-blue-500/20 text-blue-500' 
+                            : 'bg-orange-500/20 text-orange-500'
+                        }`}>
+                          {req.network === 'LOCAL' ? 'Local Withdrawal' : req.network}
+                        </span>
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          req.status === 'Pending' ? 'bg-yellow-500/20 text-yellow-500' :
+                          req.status === 'Approved' ? 'bg-green-500/20 text-green-500' :
+                          'bg-red-500/20 text-red-500'
+                        }`}>
+                          {req.status}
+                        </span>
+                      </div>
+
+                      <div className="mb-3">
+                        <p className="text-white font-medium">{req.userId?.firstName} {req.userId?.lastName}</p>
+                        <p className="text-gray-500 text-sm">{req.userId?.email}</p>
+                        <p className="text-gray-500 text-xs font-mono">User ID: {req.userId?._id}</p>
+                      </div>
+
+                      <div>
+                        <p className="text-gray-500 text-sm">Wallet Address</p>
+                        <p className={`text-white font-mono text-sm break-all ${req.network !== 'LOCAL' ? 'bg-dark-600 p-2 rounded' : ''}`}>
+                          {req.walletAddress}
+                        </p>
+                      </div>
+
+                      {req.rejectionReason && (
+                        <div className="mt-3 p-2 bg-red-500/10 border border-red-500/30 rounded-lg">
+                          <p className="text-red-400 text-sm">Rejection Reason: {req.rejectionReason}</p>
+                        </div>
+                      )}
+
+                      <p className="text-gray-500 text-xs mt-3">
+                        Submitted: {new Date(req.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+
+                    {req.status === 'Pending' && (
+                      <div className="flex sm:flex-col gap-2">
+                        <button
+                          onClick={() => handleApproveCryptoRequest(req._id)}
+                          className="flex-1 sm:flex-none px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Check size={16} /> Approve
+                        </button>
+                        <button
+                          onClick={() => handleRejectCryptoRequest(req._id)}
                           className="flex-1 sm:flex-none px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center gap-1"
                         >
                           <X size={16} /> Reject
