@@ -467,9 +467,11 @@ router.get('/user-crypto/:userId/approved', async (req, res) => {
 router.post('/user-crypto', async (req, res) => {
   try {
     const { userId, network, walletAddress } = req.body
+    
+    console.log('Crypto wallet submission request:', { userId, network, walletAddress })
 
     if (!userId || !network || !walletAddress) {
-      return res.status(400).json({ message: 'User ID, network and wallet address are required' })
+      return res.status(400).json({ success: false, message: 'User ID, network and wallet address are required' })
     }
 
     // Check for duplicate
@@ -481,7 +483,7 @@ router.post('/user-crypto', async (req, res) => {
     })
 
     if (existing) {
-      return res.status(400).json({ message: 'This wallet is already submitted or approved' })
+      return res.status(400).json({ success: false, message: 'This wallet is already submitted or approved' })
     }
 
     const wallet = new UserCryptoWallet({
@@ -498,7 +500,8 @@ router.post('/user-crypto', async (req, res) => {
       wallet 
     })
   } catch (error) {
-    res.status(500).json({ message: 'Error submitting crypto wallet', error: error.message })
+    console.error('Error submitting crypto wallet:', error)
+    res.status(500).json({ success: false, message: 'Error submitting crypto wallet', error: error.message })
   }
 })
 
