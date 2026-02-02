@@ -716,7 +716,7 @@ const LandingPage = () => {
                 Your trusted partner for global trading. Trade with confidence on the world's most advanced platform.
               </p>
               <p className="text-sm leading-relaxed mb-6" style={{ color: 'var(--text-secondary)' }}>
-                <span className="font-medium" style={{ color: '#d4af37' }}>Address:</span> 123 Trading Street, Financial District, London, UK
+                <span className="font-medium" style={{ color: '#d4af37' }}>Address:</span> Office 3009SV, 3 Fitzroy Place, Area 1/1, Sauchiehall Street, Glasgow City Centre, UK
               </p>
               <div className="flex gap-4">
                 {['Twitter', 'Discord', 'Telegram'].map((social, i) => (
