@@ -712,8 +712,11 @@ const LandingPage = () => {
               <div className="flex items-center gap-3 mb-6">
                 <img src={concorddexLogo} alt="Concorddex" className="h-14 sm:h-16" />
               </div>
-              <p className="text-sm leading-relaxed mb-6" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-secondary)' }}>
                 Your trusted partner for global trading. Trade with confidence on the world's most advanced platform.
+              </p>
+              <p className="text-sm leading-relaxed mb-6" style={{ color: 'var(--text-secondary)' }}>
+                <span className="font-medium" style={{ color: '#d4af37' }}>Address:</span> 123 Trading Street, Financial District, London, UK
               </p>
               <div className="flex gap-4">
                 {['Twitter', 'Discord', 'Telegram'].map((social, i) => (
