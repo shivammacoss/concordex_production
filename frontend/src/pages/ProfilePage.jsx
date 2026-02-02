@@ -42,6 +42,20 @@ const ProfilePage = () => {
   })
   const [cryptoLoading, setCryptoLoading] = useState(false)
 
+  // Bank Account State
+  const [userBankAccounts, setUserBankAccounts] = useState([])
+  const [showBankForm, setShowBankForm] = useState(false)
+  const [bankFormType, setBankFormType] = useState('bank') // 'bank' or 'upi'
+  const [bankForm, setBankForm] = useState({
+    bankName: '',
+    accountNumber: '',
+    accountHolderName: '',
+    ifscCode: '',
+    branchName: '',
+    upiId: ''
+  })
+  const [bankLoading, setBankLoading] = useState(false)
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768)
     window.addEventListener('resize', handleResize)
@@ -52,6 +66,7 @@ const ProfilePage = () => {
     fetchChallengeStatus()
     fetchKycStatus()
     fetchUserCryptoWallets()
+    fetchUserBankAccounts()
   }, [])
 
   // Fetch user's crypto wallets
@@ -127,6 +142,91 @@ const ProfilePage = () => {
       }
     } catch (error) {
       console.error('Error deleting crypto wallet:', error)
+    }
+  }
+
+  // Fetch user's bank accounts
+  const fetchUserBankAccounts = async () => {
+    try {
+      const res = await fetch(`${API_URL}/payment-methods/user-banks/${storedUser._id}`)
+      const data = await res.json()
+      setUserBankAccounts(data.accounts || [])
+    } catch (error) {
+      console.error('Error fetching bank accounts:', error)
+    }
+  }
+
+  // Submit bank account for approval
+  const handleBankSubmit = async () => {
+    if (bankFormType === 'bank') {
+      if (!bankForm.bankName || !bankForm.accountNumber || !bankForm.accountHolderName || !bankForm.ifscCode) {
+        alert('Please fill all required bank details')
+        return
+      }
+    } else {
+      if (!bankForm.upiId) {
+        alert('Please enter UPI ID')
+        return
+      }
+    }
+
+    setBankLoading(true)
+    try {
+      const payload = {
+        userId: storedUser._id,
+        type: bankFormType === 'bank' ? 'Bank Transfer' : 'UPI',
+        ...(bankFormType === 'bank' 
+          ? { 
+              bankName: bankForm.bankName, 
+              accountNumber: bankForm.accountNumber, 
+              accountHolderName: bankForm.accountHolderName, 
+              ifscCode: bankForm.ifscCode,
+              branchName: bankForm.branchName
+            }
+          : { upiId: bankForm.upiId }
+        )
+      }
+      
+      const res = await fetch(`${API_URL}/payment-methods/user-banks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      const data = await res.json()
+      if (data.success) {
+        alert(bankFormType === 'bank' ? 'Bank account submitted for approval!' : 'UPI ID submitted for approval!')
+        setShowBankForm(false)
+        setBankFormType('bank')
+        setBankForm({
+          bankName: '',
+          accountNumber: '',
+          accountHolderName: '',
+          ifscCode: '',
+          branchName: '',
+          upiId: ''
+        })
+        fetchUserBankAccounts()
+      } else {
+        alert(data.message || 'Failed to submit')
+      }
+    } catch (error) {
+      console.error('Error submitting:', error)
+      alert('Failed to submit')
+    }
+    setBankLoading(false)
+  }
+
+  // Delete bank account
+  const handleDeleteBankAccount = async (id) => {
+    if (!confirm('Are you sure you want to delete this bank account?')) return
+    try {
+      const res = await fetch(`${API_URL}/payment-methods/user-banks/${id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) {
+        fetchUserBankAccounts()
+      }
+    } catch (error) {
+      console.error('Error deleting bank account:', error)
     }
   }
   
@@ -812,6 +912,206 @@ const ProfilePage = () => {
                         className="flex-1 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
                       >
                         {cryptoLoading ? 'Submitting...' : 'Submit for Approval'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Bank Account Section */}
+            <div className="bg-dark-800 rounded-xl p-6 border border-gray-800 mt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white font-semibold flex items-center gap-2">
+                  <Building2 size={18} /> Bank Accounts
+                </h3>
+                <button
+                  onClick={() => setShowBankForm(true)}
+                  className="px-3 py-1.5 bg-blue-500/20 text-blue-500 rounded-lg text-sm hover:bg-blue-500/30"
+                >
+                  + Add Bank
+                </button>
+              </div>
+
+              <p className="text-gray-500 text-sm mb-4">
+                Add bank accounts or UPI IDs for withdrawals. Accounts require admin approval before use.
+              </p>
+
+              {userBankAccounts.length === 0 ? (
+                <div className="p-4 bg-dark-700 rounded-lg text-center">
+                  <p className="text-gray-500">No bank accounts added yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {userBankAccounts.map((account) => (
+                    <div key={account._id} className="p-4 bg-dark-700 rounded-lg border border-gray-700">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          {account.type === 'UPI' ? (
+                            <Smartphone size={20} className="text-purple-500" />
+                          ) : (
+                            <Building2 size={20} className="text-blue-500" />
+                          )}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-white font-medium">
+                                {account.type === 'UPI' ? 'UPI' : account.bankName}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-xs ${
+                                account.status === 'Pending' ? 'bg-yellow-500/20 text-yellow-500' :
+                                account.status === 'Approved' ? 'bg-green-500/20 text-green-500' :
+                                'bg-red-500/20 text-red-500'
+                              }`}>
+                                {account.status}
+                              </span>
+                            </div>
+                            <p className="text-gray-400 text-sm">
+                              {account.type === 'UPI' 
+                                ? account.upiId 
+                                : `${account.accountHolderName} - ****${account.accountNumber?.slice(-4)}`
+                              }
+                            </p>
+                            {account.rejectionReason && (
+                              <p className="text-red-400 text-xs mt-1">Reason: {account.rejectionReason}</p>
+                            )}
+                          </div>
+                        </div>
+                        {account.status !== 'Approved' && (
+                          <button
+                            onClick={() => handleDeleteBankAccount(account._id)}
+                            className="text-gray-500 hover:text-red-500"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Bank Account Form Modal */}
+            {showBankForm && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div className="bg-dark-800 rounded-xl w-full max-w-md border border-gray-700 max-h-[90vh] overflow-y-auto">
+                  <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+                    <h3 className="text-white font-semibold">Add Bank Account</h3>
+                    <button onClick={() => { setShowBankForm(false); setBankFormType('bank'); }} className="text-gray-400 hover:text-white">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    {/* Type Selection */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setBankFormType('bank')}
+                        className={`p-3 rounded-lg border flex items-center justify-center gap-2 ${
+                          bankFormType === 'bank'
+                            ? 'border-blue-500 bg-blue-500/20 text-blue-500'
+                            : 'border-gray-700 text-gray-400'
+                        }`}
+                      >
+                        <Building2 size={18} /> Bank Transfer
+                      </button>
+                      <button
+                        onClick={() => setBankFormType('upi')}
+                        className={`p-3 rounded-lg border flex items-center justify-center gap-2 ${
+                          bankFormType === 'upi'
+                            ? 'border-purple-500 bg-purple-500/20 text-purple-500'
+                            : 'border-gray-700 text-gray-400'
+                        }`}
+                      >
+                        <Smartphone size={18} /> UPI
+                      </button>
+                    </div>
+
+                    {bankFormType === 'bank' ? (
+                      <>
+                        <div>
+                          <label className="text-gray-400 text-sm block mb-1">Bank Name *</label>
+                          <input
+                            type="text"
+                            value={bankForm.bankName}
+                            onChange={(e) => setBankForm({...bankForm, bankName: e.target.value})}
+                            placeholder="e.g., HDFC Bank"
+                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-gray-400 text-sm block mb-1">Account Holder Name *</label>
+                          <input
+                            type="text"
+                            value={bankForm.accountHolderName}
+                            onChange={(e) => setBankForm({...bankForm, accountHolderName: e.target.value})}
+                            placeholder="Name as per bank account"
+                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-gray-400 text-sm block mb-1">Account Number *</label>
+                          <input
+                            type="text"
+                            value={bankForm.accountNumber}
+                            onChange={(e) => setBankForm({...bankForm, accountNumber: e.target.value})}
+                            placeholder="Enter account number"
+                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-gray-400 text-sm block mb-1">IFSC Code *</label>
+                          <input
+                            type="text"
+                            value={bankForm.ifscCode}
+                            onChange={(e) => setBankForm({...bankForm, ifscCode: e.target.value.toUpperCase()})}
+                            placeholder="e.g., HDFC0001234"
+                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white uppercase"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-gray-400 text-sm block mb-1">Branch Name (Optional)</label>
+                          <input
+                            type="text"
+                            value={bankForm.branchName}
+                            onChange={(e) => setBankForm({...bankForm, branchName: e.target.value})}
+                            placeholder="e.g., Mumbai Main Branch"
+                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="text-gray-400 text-sm block mb-1">UPI ID *</label>
+                          <input
+                            type="text"
+                            value={bankForm.upiId}
+                            onChange={(e) => setBankForm({...bankForm, upiId: e.target.value})}
+                            placeholder="e.g., yourname@upi"
+                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                          />
+                        </div>
+                        <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                          <p className="text-purple-500 text-xs">
+                            ℹ️ Make sure your UPI ID is correct and active.
+                          </p>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => { setShowBankForm(false); setBankFormType('bank'); }}
+                        className="flex-1 py-2 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleBankSubmit}
+                        disabled={bankLoading}
+                        className="flex-1 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+                      >
+                        {bankLoading ? 'Submitting...' : 'Submit for Approval'}
                       </button>
                     </div>
                   </div>
