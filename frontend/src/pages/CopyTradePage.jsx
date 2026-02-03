@@ -41,6 +41,9 @@ const CopyTradePage = () => {
   const [applyingMaster, setApplyingMaster] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   
+  // Commission settings from backend
+  const [commissionSettings, setCommissionSettings] = useState({ minCommissionPercentage: 5, maxCommissionPercentage: 50 })
+  
   // Edit subscription states
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingSubscription, setEditingSubscription] = useState(null)
@@ -75,6 +78,7 @@ const CopyTradePage = () => {
     fetchMyCopyTrades()
     fetchAccounts()
     fetchMyMasterProfile()
+    fetchCommissionSettings()
   }, [])
 
   // Fetch my followers when master profile is loaded
@@ -102,6 +106,18 @@ const CopyTradePage = () => {
       if (data.success) setChallengeModeEnabled(data.enabled)
     } catch (error) {
       console.error('Error:', error)
+    }
+  }
+
+  const fetchCommissionSettings = async () => {
+    try {
+      const res = await fetch(`${API_URL}/copy/settings`)
+      const data = await res.json()
+      if (data.success && data.settings?.commissionSettings) {
+        setCommissionSettings(data.settings.commissionSettings)
+      }
+    } catch (error) {
+      console.error('Error fetching commission settings:', error)
     }
   }
 
@@ -176,8 +192,8 @@ const CopyTradePage = () => {
       alert('Please select a trading account')
       return
     }
-    if (masterForm.requestedCommissionPercentage < 5 || masterForm.requestedCommissionPercentage > 50) {
-      alert('Commission must be between 5% and 50%')
+    if (masterForm.requestedCommissionPercentage < commissionSettings.minCommissionPercentage || masterForm.requestedCommissionPercentage > commissionSettings.maxCommissionPercentage) {
+      alert(`Commission must be between ${commissionSettings.minCommissionPercentage}% and ${commissionSettings.maxCommissionPercentage}%`)
       return
     }
     
@@ -943,25 +959,25 @@ const CopyTradePage = () => {
               </div>
 
               <div>
-                <label className="text-gray-400 text-sm mb-1 block">Requested Commission (%) <span className="text-yellow-500">Max 50%</span></label>
+                <label className="text-gray-400 text-sm mb-1 block">Requested Commission (%) <span className="text-yellow-500">Max {commissionSettings.maxCommissionPercentage}%</span></label>
                 <input
                   type="number"
                   value={masterForm.requestedCommissionPercentage}
                   onChange={(e) => {
                     const value = parseFloat(e.target.value) || 0
-                    if (value > 50) {
-                      setMasterForm(prev => ({ ...prev, requestedCommissionPercentage: 50 }))
+                    if (value > commissionSettings.maxCommissionPercentage) {
+                      setMasterForm(prev => ({ ...prev, requestedCommissionPercentage: commissionSettings.maxCommissionPercentage }))
                     } else if (value < 0) {
                       setMasterForm(prev => ({ ...prev, requestedCommissionPercentage: 0 }))
                     } else {
                       setMasterForm(prev => ({ ...prev, requestedCommissionPercentage: value }))
                     }
                   }}
-                  min="5"
-                  max="50"
+                  min={commissionSettings.minCommissionPercentage}
+                  max={commissionSettings.maxCommissionPercentage}
                   className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
                 />
-                <p className="text-gray-500 text-xs mt-1">Commission you'll earn from followers' profits (5-50%)</p>
+                <p className="text-gray-500 text-xs mt-1">Commission you'll earn from followers' profits ({commissionSettings.minCommissionPercentage}-{commissionSettings.maxCommissionPercentage}%)</p>
               </div>
 
               <div>
