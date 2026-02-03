@@ -163,9 +163,8 @@ const WalletPage = () => {
     try {
       const res = await fetch(`${API_URL}/payment-methods/user-banks/${user._id}/approved`)
       const data = await res.json()
-      // Filter to only show LOCAL type wallets for local withdrawal
-      const localAccounts = (data.accounts || []).filter(acc => acc.type === 'Bank Transfer' || acc.type === 'UPI')
-      setUserBankAccounts(localAccounts)
+      // Include Local Withdrawal type accounts
+      setUserBankAccounts(data.accounts || [])
     } catch (error) {
       console.error('Error fetching user bank accounts:', error)
     }
@@ -353,7 +352,7 @@ const WalletPage = () => {
       return
     }
 
-    if (withdrawalType === 'local' && !selectedBankAccount) {
+    if (withdrawalType === 'local' && !selectedBankAccount && !selectedCryptoWallet) {
       setError('Please select a withdrawal account')
       return
     }
@@ -372,11 +371,30 @@ const WalletPage = () => {
       }
 
       if (withdrawalType === 'local') {
-        withdrawalData.paymentMethod = selectedBankAccount.type === 'UPI' ? 'UPI' : 'Bank Transfer'
-        withdrawalData.bankAccountId = selectedBankAccount._id
-        withdrawalData.bankAccountDetails = selectedBankAccount.type === 'UPI' 
-          ? { type: 'UPI', upiId: selectedBankAccount.upiId }
-          : { type: 'Bank', bankName: selectedBankAccount.bankName, accountNumber: selectedBankAccount.accountNumber, ifscCode: selectedBankAccount.ifscCode }
+        // Check if using legacy LOCAL network crypto wallet or new Local Withdrawal bank account
+        if (selectedCryptoWallet && selectedCryptoWallet.network === 'LOCAL') {
+          // Legacy LOCAL network wallet
+          withdrawalData.paymentMethod = 'Local'
+          withdrawalData.cryptoWalletId = selectedCryptoWallet._id
+          withdrawalData.localDetails = {
+            address: selectedCryptoWallet.walletAddress
+          }
+        } else if (selectedBankAccount) {
+          // New Local Withdrawal from bank accounts
+          if (selectedBankAccount.type === 'Local Withdrawal') {
+            withdrawalData.paymentMethod = 'Local'
+            withdrawalData.bankAccountId = selectedBankAccount._id
+            withdrawalData.localDetails = {
+              address: selectedBankAccount.localAddress
+            }
+          } else {
+            withdrawalData.paymentMethod = selectedBankAccount.type === 'UPI' ? 'UPI' : 'Bank Transfer'
+            withdrawalData.bankAccountId = selectedBankAccount._id
+            withdrawalData.bankAccountDetails = selectedBankAccount.type === 'UPI' 
+              ? { type: 'UPI', upiId: selectedBankAccount.upiId }
+              : { type: 'Bank', bankName: selectedBankAccount.bankName, accountNumber: selectedBankAccount.accountNumber, ifscCode: selectedBankAccount.ifscCode }
+          }
+        }
       } else {
         withdrawalData.paymentMethod = 'Crypto'
         withdrawalData.cryptoWalletId = selectedCryptoWallet._id
@@ -1025,7 +1043,7 @@ const WalletPage = () => {
                 >
                   <Building size={24} className={withdrawalType === 'local' ? 'text-accent-green' : 'text-gray-400'} />
                   <span className={`font-medium ${withdrawalType === 'local' ? 'text-accent-green' : 'text-white'}`}>Local Withdrawal</span>
-                  <span className="text-gray-500 text-xs">Bank / UPI</span>
+                 
                 </button>
                 <button
                   onClick={() => setWithdrawalType('crypto')}
@@ -1053,13 +1071,14 @@ const WalletPage = () => {
               />
             </div>
 
-            {/* Local Withdrawal - Bank Account Selection */}
+            {/* Local Withdrawal - Show LOCAL network wallets from crypto collection + Local Withdrawal from bank accounts */}
             {withdrawalType === 'local' && (
               <div className="mb-4">
-                <label className="block text-gray-400 text-sm mb-2">Select Withdrawal Account</label>
-                {userBankAccounts.length === 0 ? (
+                <label className="block text-gray-400 text-sm mb-2">Select Local Withdrawal Account</label>
+                {(userBankAccounts.filter(acc => acc.type === 'Local Withdrawal').length === 0 && 
+                  userCryptoWallets.filter(w => w.network === 'LOCAL').length === 0) ? (
                   <div className="p-4 bg-dark-700 rounded-lg border border-gray-700 text-center">
-                    <p className="text-gray-400 mb-3">No approved bank accounts or UPI IDs found.</p>
+                    <p className="text-gray-400 mb-3">No approved local withdrawal accounts found.</p>
                     <button
                       onClick={() => {
                         setShowWithdrawModal(false)
@@ -1067,12 +1086,13 @@ const WalletPage = () => {
                       }}
                       className="bg-accent-green text-black px-4 py-2 rounded-lg font-medium hover:bg-accent-green/90 transition-colors"
                     >
-                      Add Withdrawal Account
+                      Add Local Withdrawal Account
                     </button>
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {userBankAccounts.map((account) => (
+                    {/* Show Local Withdrawal from bank accounts */}
+                    {userBankAccounts.filter(acc => acc.type === 'Local Withdrawal').map((account) => (
                       <button
                         key={account._id}
                         onClick={() => setSelectedBankAccount(account)}
@@ -1082,18 +1102,28 @@ const WalletPage = () => {
                             : 'border-gray-700 bg-dark-700 hover:border-gray-600'
                         }`}
                       >
-                        {account.type === 'UPI' ? (
-                          <Smartphone size={20} className="text-blue-400" />
-                        ) : (
-                          <Building size={20} className="text-purple-400" />
-                        )}
+                        <Building size={20} className="text-cyan-400" />
                         <div className="flex-1">
-                          <p className="text-white font-medium">{account.bankName || 'UPI'}</p>
-                          <p className="text-gray-400 text-sm">
-                            {account.type === 'UPI' 
-                              ? account.upiId 
-                              : `A/C: ${account.accountNumber} | IFSC: ${account.ifscCode}`}
-                          </p>
+                          <p className="text-white font-medium">Local Withdrawal</p>
+                          <p className="text-gray-400 text-sm truncate">{account.localAddress}</p>
+                        </div>
+                      </button>
+                    ))}
+                    {/* Show LOCAL network wallets from crypto collection (legacy) */}
+                    {userCryptoWallets.filter(w => w.network === 'LOCAL').map((wallet) => (
+                      <button
+                        key={wallet._id}
+                        onClick={() => setSelectedCryptoWallet(wallet)}
+                        className={`w-full p-3 rounded-lg border transition-colors flex items-center gap-3 text-left ${
+                          selectedCryptoWallet?._id === wallet._id
+                            ? 'border-accent-green bg-accent-green/10'
+                            : 'border-gray-700 bg-dark-700 hover:border-gray-600'
+                        }`}
+                      >
+                        <Building size={20} className="text-cyan-400" />
+                        <div className="flex-1">
+                          <p className="text-white font-medium">Local Withdrawal</p>
+                          <p className="text-gray-400 text-sm truncate">{wallet.walletAddress}</p>
                         </div>
                       </button>
                     ))}
@@ -1102,11 +1132,11 @@ const WalletPage = () => {
               </div>
             )}
 
-            {/* Crypto Withdrawal - Wallet Selection */}
+            {/* Crypto Withdrawal - Wallet Selection (exclude LOCAL network) */}
             {withdrawalType === 'crypto' && (
               <div className="mb-4">
                 <label className="block text-gray-400 text-sm mb-2">Select Crypto Wallet</label>
-                {userCryptoWallets.length === 0 ? (
+                {userCryptoWallets.filter(w => w.network !== 'LOCAL').length === 0 ? (
                   <div className="p-4 bg-dark-700 rounded-lg border border-gray-700 text-center">
                     <p className="text-gray-400 mb-3">No approved crypto wallets found.</p>
                     <button
@@ -1121,7 +1151,7 @@ const WalletPage = () => {
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {userCryptoWallets.map((wallet) => (
+                    {userCryptoWallets.filter(w => w.network !== 'LOCAL').map((wallet) => (
                       <button
                         key={wallet._id}
                         onClick={() => setSelectedCryptoWallet(wallet)}

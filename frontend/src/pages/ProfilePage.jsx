@@ -96,23 +96,50 @@ const ProfilePage = () => {
 
     setCryptoLoading(true)
     try {
-      const payload = {
-        userId: storedUser._id,
-        type: cryptoFormType,
-        ...(cryptoFormType === 'crypto' 
-          ? { network: cryptoForm.network, walletAddress: cryptoForm.walletAddress }
-          : { network: 'LOCAL', walletAddress: cryptoForm.localAddress }
-        )
+      let res, data
+      
+      if (cryptoFormType === 'crypto') {
+        // Crypto wallet goes to crypto requests in admin
+        const payload = {
+          userId: storedUser._id,
+          type: cryptoFormType,
+          network: cryptoForm.network,
+          walletAddress: cryptoForm.walletAddress
+        }
+        
+        res = await fetch(`${API_URL}/payment-methods/user-crypto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        data = await res.json()
+        
+        if (data.success) {
+          alert('Crypto wallet submitted for approval!')
+          fetchUserCryptoWallets()
+        }
+      } else {
+        // Local withdrawal goes to bank requests in admin
+        const payload = {
+          userId: storedUser._id,
+          type: 'Local Withdrawal',
+          localAddress: cryptoForm.localAddress
+        }
+        
+        res = await fetch(`${API_URL}/payment-methods/user-banks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        data = await res.json()
+        
+        if (data.success) {
+          alert('Local withdrawal address submitted for approval!')
+          fetchUserBankAccounts()
+        }
       }
       
-      const res = await fetch(`${API_URL}/payment-methods/user-crypto`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      const data = await res.json()
       if (data.success) {
-        alert(cryptoFormType === 'crypto' ? 'Crypto wallet submitted for approval!' : 'Local withdrawal address submitted for approval!')
         setShowCryptoForm(false)
         setCryptoFormType('crypto')
         setCryptoForm({
@@ -120,7 +147,6 @@ const ProfilePage = () => {
           walletAddress: '',
           localAddress: ''
         })
-        fetchUserCryptoWallets()
       } else {
         alert(data.message || 'Failed to submit')
       }

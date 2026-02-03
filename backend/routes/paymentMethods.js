@@ -312,22 +312,26 @@ router.get('/user-banks/:userId/approved', async (req, res) => {
 // POST /api/payment-methods/user-banks - Submit bank account for approval
 router.post('/user-banks', async (req, res) => {
   try {
-    const { userId, type, bankName, accountNumber, accountHolderName, ifscCode, branchName, upiId } = req.body
+    const { userId, type, bankName, accountNumber, accountHolderName, ifscCode, branchName, upiId, localAddress } = req.body
 
     if (!userId || !type) {
-      return res.status(400).json({ message: 'User ID and type are required' })
+      return res.status(400).json({ success: false, message: 'User ID and type are required' })
     }
 
-    // Check for duplicate
-    const existing = await UserBankAccount.findOne({
-      userId,
-      type,
-      ...(type === 'Bank Transfer' ? { accountNumber } : { upiId }),
-      status: { $ne: 'Rejected' }
-    })
+    // Check for duplicate based on type
+    let duplicateQuery = { userId, type, status: { $ne: 'Rejected' } }
+    if (type === 'Bank Transfer') {
+      duplicateQuery.accountNumber = accountNumber
+    } else if (type === 'UPI') {
+      duplicateQuery.upiId = upiId
+    } else if (type === 'Local Withdrawal') {
+      duplicateQuery.localAddress = localAddress
+    }
+
+    const existing = await UserBankAccount.findOne(duplicateQuery)
 
     if (existing) {
-      return res.status(400).json({ message: 'This account is already submitted or approved' })
+      return res.status(400).json({ success: false, message: 'This account is already submitted or approved' })
     }
 
     const account = new UserBankAccount({
@@ -339,6 +343,7 @@ router.post('/user-banks', async (req, res) => {
       ifscCode,
       branchName,
       upiId,
+      localAddress,
       status: 'Pending'
     })
 

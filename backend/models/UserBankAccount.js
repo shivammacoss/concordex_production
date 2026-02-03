@@ -8,8 +8,13 @@ const userBankAccountSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['Bank Transfer', 'UPI'],
+    enum: ['Bank Transfer', 'UPI', 'Local Withdrawal'],
     required: true
+  },
+  // Local Withdrawal fields
+  localAddress: {
+    type: String,
+    default: ''
   },
   // Bank Transfer fields
   bankName: {

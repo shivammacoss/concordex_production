@@ -503,7 +503,7 @@ const AdminBankSettings = () => {
               : 'bg-dark-800 text-gray-400 hover:text-white'
           }`}
         >
-          Bank Requests
+          Local withdrawal Requests
           {requestStats.pending > 0 && (
             <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
               {requestStats.pending}
@@ -532,8 +532,8 @@ const AdminBankSettings = () => {
         <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 border-b border-gray-800">
             <div>
-              <h2 className="text-white font-semibold text-lg">User Bank/UPI Requests</h2>
-              <p className="text-gray-500 text-sm">Approve or reject user bank account submissions</p>
+              <h2 className="text-white font-semibold text-lg">Local Withdrawal Requests</h2>
+              <p className="text-gray-500 text-sm">Approve or reject local withdrawal submissions</p>
             </div>
             <div className="flex gap-2">
               {['Pending', 'Approved', 'Rejected'].map(status => (
@@ -564,7 +564,9 @@ const AdminBankSettings = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                          req.type === 'Bank Transfer' ? 'bg-blue-500/20 text-blue-500' : 'bg-purple-500/20 text-purple-500'
+                          req.type === 'Bank Transfer' ? 'bg-blue-500/20 text-blue-500' : 
+                          req.type === 'Local Withdrawal' ? 'bg-cyan-500/20 text-cyan-500' :
+                          'bg-purple-500/20 text-purple-500'
                         }`}>
                           {req.type}
                         </span>
@@ -601,6 +603,11 @@ const AdminBankSettings = () => {
                             <p className="text-gray-500">IFSC Code</p>
                             <p className="text-white font-mono">{req.ifscCode}</p>
                           </div>
+                        </div>
+                      ) : req.type === 'Local Withdrawal' ? (
+                        <div>
+                          <p className="text-gray-500 text-sm">Local Address</p>
+                          <p className="text-blue-400 text-sm">{req.localAddress}</p>
                         </div>
                       ) : (
                         <div>
