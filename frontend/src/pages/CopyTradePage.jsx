@@ -280,30 +280,35 @@ const CopyTradePage = () => {
     let successCount = 0
     let failedCount = 0
 
+    let lastError = ''
     for (const form of multipleMasterForms) {
       try {
         const accountId = form.tradingAccountId || (accounts.length > 0 ? accounts[0]._id : '')
+        console.log('Creating strategy with:', { userId: user._id, displayName: form.displayName, tradingAccountId: accountId })
         const res = await fetch(`${API_URL}/copy/master/apply`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userId: user._id,
             displayName: form.displayName,
-            description: form.description,
+            description: form.description || '',
             tradingAccountId: accountId,
-            requestedCommissionPercentage: form.requestedCommissionPercentage,
+            requestedCommissionPercentage: form.requestedCommissionPercentage || 10,
             strategyName: form.displayName
           })
         })
         const data = await res.json()
+        console.log('Response:', data)
         if (data.master) {
           successCount++
         } else {
           failedCount++
+          lastError = data.message || 'Unknown error'
         }
       } catch (error) {
         console.error('Error creating strategy:', error)
         failedCount++
+        lastError = error.message
       }
     }
 
@@ -313,7 +318,7 @@ const CopyTradePage = () => {
       setMultipleMasterForms([{ displayName: '', description: '', tradingAccountId: '', requestedCommissionPercentage: 10 }])
       fetchMyMasterProfile()
     } else {
-      alert('Failed to create strategies')
+      alert(`Failed to create strategies: ${lastError}`)
     }
     setApplyingMaster(false)
   }

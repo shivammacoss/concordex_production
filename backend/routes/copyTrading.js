@@ -89,7 +89,14 @@ router.post('/master/apply', async (req, res) => {
 
   } catch (error) {
     console.error('Error applying as master:', error)
-    res.status(500).json({ message: 'Error submitting application', error: error.message })
+    // Check for duplicate key error (old unique index on userId)
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        message: 'Duplicate entry error. Please run: db.mastertraders.dropIndex("userId_1") in MongoDB to allow multiple strategies.',
+        error: error.message 
+      })
+    }
+    res.status(500).json({ message: error.message || 'Error submitting application', error: error.message })
   }
 })
 

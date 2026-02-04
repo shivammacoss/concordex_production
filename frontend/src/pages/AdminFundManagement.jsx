@@ -416,7 +416,7 @@ const AdminFundManagement = () => {
               {selectedTxn.type?.toLowerCase() === 'withdrawal' && (
                 <div className="border-t border-gray-700 pt-4">
                   {/* Crypto Withdrawal Details */}
-                  {selectedTxn.paymentMethod === 'Crypto' || selectedTxn.cryptoDetails ? (
+                  {selectedTxn.paymentMethod === 'Crypto' || selectedTxn.cryptoDetails || selectedTxn.cryptoWalletId ? (
                     <>
                       <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
                         <Bitcoin size={16} className="text-orange-500" /> Crypto Withdrawal Details
@@ -424,11 +424,11 @@ const AdminFundManagement = () => {
                       <div className="bg-dark-700 rounded-lg p-4 space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-gray-500">Network</span>
-                          <span className="text-orange-400 font-medium">{selectedTxn.cryptoDetails?.network || '-'}</span>
+                          <span className="text-orange-400 font-medium">{selectedTxn.cryptoDetails?.network || selectedTxn.cryptoWalletId?.network || '-'}</span>
                         </div>
                         <div>
                           <span className="text-gray-500 block mb-1">Wallet Address</span>
-                          <span className="text-white font-mono text-xs break-all bg-dark-600 p-2 rounded block">{selectedTxn.cryptoDetails?.address || '-'}</span>
+                          <span className="text-white font-mono text-xs break-all bg-dark-600 p-2 rounded block">{selectedTxn.cryptoDetails?.address || selectedTxn.cryptoWalletId?.walletAddress || '-'}</span>
                         </div>
                       </div>
                     </>

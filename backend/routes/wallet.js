@@ -64,7 +64,9 @@ router.post('/deposit', async (req, res) => {
 // POST /api/wallet/withdraw - Create withdrawal request
 router.post('/withdraw', async (req, res) => {
   try {
-    const { userId, amount, paymentMethod, bankAccountId, bankAccountDetails } = req.body
+    const { userId, amount, paymentMethod, bankAccountId, bankAccountDetails, cryptoWalletId, cryptoDetails, localDetails, note } = req.body
+
+    console.log('[Withdrawal] Request body:', JSON.stringify({ userId, amount, paymentMethod, cryptoWalletId, cryptoDetails, localDetails, note }))
 
     if (!amount || amount <= 0) {
       return res.status(400).json({ message: 'Invalid amount' })
@@ -81,7 +83,7 @@ router.post('/withdraw', async (req, res) => {
       return res.status(400).json({ message: 'Insufficient balance' })
     }
 
-    // Create transaction with bank account details
+    // Create transaction with all withdrawal details
     const transaction = new Transaction({
       userId,
       walletId: wallet._id,
@@ -90,7 +92,11 @@ router.post('/withdraw', async (req, res) => {
       paymentMethod,
       status: 'Pending',
       bankAccountId,
-      bankAccountDetails
+      bankAccountDetails,
+      cryptoWalletId,
+      cryptoDetails,
+      localDetails,
+      note
     })
     await transaction.save()
 
@@ -217,6 +223,8 @@ router.get('/admin/transactions', async (req, res) => {
   try {
     const transactions = await Transaction.find()
       .populate('userId', 'firstName lastName email')
+      .populate('cryptoWalletId', 'network walletAddress')
+      .populate('bankAccountId', 'bankName accountNumber ifscCode upiId type')
       .sort({ createdAt: -1 })
     res.json({ transactions })
   } catch (error) {
