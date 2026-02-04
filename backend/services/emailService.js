@@ -115,14 +115,26 @@ export const getOTPExpiry = async () => {
 // Test SMTP connection
 export const testSMTPConnection = async () => {
   try {
-    const transport = await getTransporter()
-    if (!transport) {
-      return { success: false, message: 'SMTP not configured' }
+    const settings = await EmailSettings.findOne()
+    console.log('[SMTP Test] Settings found:', settings ? 'Yes' : 'No')
+    if (settings) {
+      console.log('[SMTP Test] Host:', settings.smtpHost)
+      console.log('[SMTP Test] Port:', settings.smtpPort)
+      console.log('[SMTP Test] User:', settings.smtpUser)
+      console.log('[SMTP Test] Enabled:', settings.smtpEnabled)
     }
     
+    const transport = await getTransporter()
+    if (!transport) {
+      return { success: false, message: 'SMTP not configured - check database settings' }
+    }
+    
+    console.log('[SMTP Test] Attempting to verify connection...')
     await transport.verify()
+    console.log('[SMTP Test] Connection verified successfully')
     return { success: true, message: 'SMTP connection successful' }
   } catch (error) {
+    console.error('[SMTP Test] Error:', error.message)
     return { success: false, message: error.message }
   }
 }
