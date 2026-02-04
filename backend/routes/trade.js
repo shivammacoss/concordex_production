@@ -137,19 +137,20 @@ router.post('/open', async (req, res) => {
       leverage // Pass user-selected leverage
     )
 
-    // Check if this is a master trader and copy to followers
-    const master = await MasterTrader.findOne({ 
+    // Check if this trading account is linked to any active master strategies and copy to their followers
+    const masters = await MasterTrader.find({ 
       tradingAccountId, 
       status: 'ACTIVE' 
     })
     
     let copyResults = []
-    if (master) {
+    for (const master of masters) {
       try {
-        copyResults = await copyTradingEngine.copyTradeToFollowers(trade, master._id)
-        console.log(`Copied trade to ${copyResults.filter(r => r.status === 'SUCCESS').length} followers`)
+        const results = await copyTradingEngine.copyTradeToFollowers(trade, master._id)
+        copyResults.push(...results)
+        console.log(`Copied trade to ${results.filter(r => r.status === 'SUCCESS').length} followers for strategy ${master.displayName}`)
       } catch (copyError) {
-        console.error('Error copying trade to followers:', copyError)
+        console.error(`Error copying trade to followers for strategy ${master.displayName}:`, copyError)
       }
     }
 

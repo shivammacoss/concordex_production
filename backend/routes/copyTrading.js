@@ -12,10 +12,10 @@ const router = express.Router()
 
 // ==================== MASTER TRADER ROUTES ====================
 
-// POST /api/copy/master/apply - Apply to become a master trader
+// POST /api/copy/master/apply - Apply to become a master trader (supports multiple strategies)
 router.post('/master/apply', async (req, res) => {
   try {
-    const { userId, tradingAccountId, displayName, description, requestedCommissionPercentage } = req.body
+    const { userId, tradingAccountId, displayName, description, requestedCommissionPercentage, strategyName } = req.body
 
     // Check if copy trading is enabled
     const settings = await CopySettings.getSettings()
@@ -23,12 +23,20 @@ router.post('/master/apply', async (req, res) => {
       return res.status(400).json({ message: 'Master applications are currently closed' })
     }
 
-    // Check if user already has a master application
-    const existingMaster = await MasterTrader.findOne({ userId })
+    // Check if user already has a master with same display name
+    const existingMaster = await MasterTrader.findOne({ userId, displayName })
     if (existingMaster) {
       return res.status(400).json({ 
-        message: 'You already have a master trader application',
+        message: 'You already have a strategy with this display name. Please use a different name.',
         status: existingMaster.status
+      })
+    }
+
+    // Check max strategies limit (5 per user)
+    const userMasterCount = await MasterTrader.countDocuments({ userId })
+    if (userMasterCount >= 5) {
+      return res.status(400).json({ 
+        message: 'You have reached the maximum limit of 5 strategies per user'
       })
     }
 
@@ -62,6 +70,7 @@ router.post('/master/apply', async (req, res) => {
       tradingAccountId,
       displayName,
       description,
+      strategyName: strategyName || displayName,
       requestedCommissionPercentage,
       minimumEquityMet: minEquityMet,
       minimumTradesMet: minTradesMet,
@@ -118,17 +127,19 @@ router.get('/master/:id', async (req, res) => {
   }
 })
 
-// GET /api/copy/master/my-profile/:userId - Get user's master profile
+// GET /api/copy/master/my-profile/:userId - Get user's master profiles (all strategies)
 router.get('/master/my-profile/:userId', async (req, res) => {
   try {
-    const master = await MasterTrader.findOne({ userId: req.params.userId })
+    const masters = await MasterTrader.find({ userId: req.params.userId })
       .populate('tradingAccountId', 'accountId balance')
+      .sort({ createdAt: -1 })
 
-    if (!master) {
+    if (!masters || masters.length === 0) {
       return res.status(404).json({ message: 'Master profile not found' })
     }
 
-    res.json({ master })
+    // Return first master for backward compatibility, plus all masters
+    res.json({ master: masters[0], masters })
   } catch (error) {
     res.status(500).json({ message: 'Error fetching master profile', error: error.message })
   }

@@ -4,13 +4,16 @@ const masterTraderSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    unique: true
+    required: true
   },
   tradingAccountId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'TradingAccount',
     required: true
+  },
+  strategyName: {
+    type: String,
+    default: ''
   },
   status: {
     type: String,
@@ -111,7 +114,8 @@ const masterTraderSchema = new mongoose.Schema({
   }
 }, { timestamps: true })
 
-// Index for efficient queries (userId already has unique: true which creates an index)
+// Index for efficient queries
+masterTraderSchema.index({ userId: 1, status: 1 })
 masterTraderSchema.index({ status: 1, visibility: 1 })
 
 export default mongoose.model('MasterTrader', masterTraderSchema)
