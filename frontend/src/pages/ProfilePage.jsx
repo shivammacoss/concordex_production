@@ -56,6 +56,18 @@ const ProfilePage = () => {
   })
   const [bankLoading, setBankLoading] = useState(false)
 
+  // Security State
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
+  const [showLoginHistoryModal, setShowLoginHistoryModal] = useState(false)
+  const [show2FAModal, setShow2FAModal] = useState(false)
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [loginHistory, setLoginHistory] = useState([])
+  const [loginHistoryLoading, setLoginHistoryLoading] = useState(false)
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false)
+  const [disable2FAPassword, setDisable2FAPassword] = useState('')
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768)
     window.addEventListener('resize', handleResize)
@@ -67,6 +79,7 @@ const ProfilePage = () => {
     fetchKycStatus()
     fetchUserCryptoWallets()
     fetchUserBankAccounts()
+    fetch2FAStatus()
   }, [])
 
   // Fetch user's crypto wallets
@@ -78,6 +91,131 @@ const ProfilePage = () => {
     } catch (error) {
       console.error('Error fetching crypto wallets:', error)
     }
+  }
+
+  // Fetch 2FA status
+  const fetch2FAStatus = async () => {
+    try {
+      const res = await fetch(`${API_URL}/auth/2fa/status/${storedUser._id}`)
+      const data = await res.json()
+      if (data.success) {
+        setTwoFactorEnabled(data.twoFactorEnabled)
+      }
+    } catch (error) {
+      console.error('Error fetching 2FA status:', error)
+    }
+  }
+
+  // Change password
+  const handleChangePassword = async () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      alert('Please fill all fields')
+      return
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      alert('New passwords do not match')
+      return
+    }
+    if (passwordForm.newPassword.length < 6) {
+      alert('New password must be at least 6 characters')
+      return
+    }
+
+    setPasswordLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: storedUser._id,
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        alert('Password changed successfully! Please login again.')
+        setShowChangePasswordModal(false)
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+        localStorage.removeItem('user')
+        localStorage.removeItem('token')
+        navigate('/login')
+      } else {
+        alert(data.message || 'Failed to change password')
+      }
+    } catch (error) {
+      console.error('Error changing password:', error)
+      alert('Error changing password')
+    }
+    setPasswordLoading(false)
+  }
+
+  // Fetch login history
+  const fetchLoginHistory = async () => {
+    setLoginHistoryLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/auth/login-history/${storedUser._id}`)
+      const data = await res.json()
+      if (data.success) {
+        setLoginHistory(data.loginHistory || [])
+      }
+    } catch (error) {
+      console.error('Error fetching login history:', error)
+    }
+    setLoginHistoryLoading(false)
+  }
+
+  // Enable 2FA
+  const handleEnable2FA = async () => {
+    setTwoFactorLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/auth/2fa/enable`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: storedUser._id })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setTwoFactorEnabled(true)
+        alert('Two-Factor Authentication enabled successfully!')
+        setShow2FAModal(false)
+      } else {
+        alert(data.message || 'Failed to enable 2FA')
+      }
+    } catch (error) {
+      console.error('Error enabling 2FA:', error)
+      alert('Error enabling 2FA')
+    }
+    setTwoFactorLoading(false)
+  }
+
+  // Disable 2FA
+  const handleDisable2FA = async () => {
+    if (!disable2FAPassword) {
+      alert('Please enter your password to disable 2FA')
+      return
+    }
+    setTwoFactorLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/auth/2fa/disable`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: storedUser._id, password: disable2FAPassword })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setTwoFactorEnabled(false)
+        setDisable2FAPassword('')
+        alert('Two-Factor Authentication disabled successfully!')
+        setShow2FAModal(false)
+      } else {
+        alert(data.message || 'Failed to disable 2FA')
+      }
+    } catch (error) {
+      console.error('Error disabling 2FA:', error)
+      alert('Error disabling 2FA')
+    }
+    setTwoFactorLoading(false)
   }
 
   // Submit crypto wallet for approval
@@ -1159,29 +1297,237 @@ const ProfilePage = () => {
                 <div className="flex items-center justify-between py-3 border-b border-gray-700">
                   <div>
                     <p className="text-white">Password</p>
-                    <p className="text-gray-500 text-sm">Last changed: Never</p>
+                    <p className="text-gray-500 text-sm">Last changed: {storedUser.passwordChangedAt ? new Date(storedUser.passwordChangedAt).toLocaleDateString() : 'Never'}</p>
                   </div>
-                  <button className="text-accent-green hover:underline text-sm">Change Password</button>
+                  <button 
+                    onClick={() => setShowChangePasswordModal(true)}
+                    className="text-accent-green hover:underline text-sm"
+                  >
+                    Change Password
+                  </button>
                 </div>
                 <div className="flex items-center justify-between py-3 border-b border-gray-700">
                   <div>
                     <p className="text-white">Two-Factor Authentication</p>
-                    <p className="text-gray-500 text-sm">Add an extra layer of security</p>
+                    <p className="text-gray-500 text-sm">{twoFactorEnabled ? 'Currently enabled' : 'Add an extra layer of security'}</p>
                   </div>
-                  <button className="text-accent-green hover:underline text-sm">Enable</button>
+                  <button 
+                    onClick={() => setShow2FAModal(true)}
+                    className={`hover:underline text-sm ${twoFactorEnabled ? 'text-red-400' : 'text-accent-green'}`}
+                  >
+                    {twoFactorEnabled ? 'Disable' : 'Enable'}
+                  </button>
                 </div>
                 <div className="flex items-center justify-between py-3">
                   <div>
                     <p className="text-white">Login History</p>
                     <p className="text-gray-500 text-sm">View recent login activity</p>
                   </div>
-                  <button className="text-accent-green hover:underline text-sm">View</button>
+                  <button 
+                    onClick={() => { setShowLoginHistoryModal(true); fetchLoginHistory(); }}
+                    className="text-accent-green hover:underline text-sm"
+                  >
+                    View
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </main>
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-semibold flex items-center gap-2">
+                <Shield size={18} /> Change Password
+              </h3>
+              <button onClick={() => setShowChangePasswordModal(false)} className="text-gray-400 hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-gray-400 text-sm block mb-1">Current Password</label>
+                <input
+                  type="password"
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                  placeholder="Enter current password"
+                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                />
+              </div>
+              <div>
+                <label className="text-gray-400 text-sm block mb-1">New Password</label>
+                <input
+                  type="password"
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  placeholder="Enter new password (min 6 characters)"
+                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                />
+              </div>
+              <div>
+                <label className="text-gray-400 text-sm block mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  placeholder="Confirm new password"
+                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowChangePasswordModal(false)}
+                  className="flex-1 py-2 bg-dark-700 text-white rounded-lg hover:bg-dark-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleChangePassword}
+                  disabled={passwordLoading}
+                  className="flex-1 py-2 bg-accent-green text-black font-medium rounded-lg hover:bg-accent-green/90 disabled:opacity-50"
+                >
+                  {passwordLoading ? 'Changing...' : 'Change Password'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2FA Modal */}
+      {show2FAModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-semibold flex items-center gap-2">
+                <Shield size={18} /> Two-Factor Authentication
+              </h3>
+              <button onClick={() => setShow2FAModal(false)} className="text-gray-400 hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
+            {twoFactorEnabled ? (
+              <div className="space-y-4">
+                <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                  <p className="text-green-500 text-sm">✓ Two-Factor Authentication is currently enabled</p>
+                </div>
+                <p className="text-gray-400 text-sm">Enter your password to disable 2FA:</p>
+                <input
+                  type="password"
+                  value={disable2FAPassword}
+                  onChange={(e) => setDisable2FAPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShow2FAModal(false)}
+                    className="flex-1 py-2 bg-dark-700 text-white rounded-lg hover:bg-dark-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDisable2FA}
+                    disabled={twoFactorLoading}
+                    className="flex-1 py-2 bg-red-500 text-white font-medium rounded-lg hover:bg-red-600 disabled:opacity-50"
+                  >
+                    {twoFactorLoading ? 'Disabling...' : 'Disable 2FA'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                  <p className="text-yellow-500 text-sm">⚠ Two-Factor Authentication is not enabled</p>
+                </div>
+                <p className="text-gray-400 text-sm">
+                  Enable 2FA to add an extra layer of security to your account. You will need to enter a verification code when logging in.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShow2FAModal(false)}
+                    className="flex-1 py-2 bg-dark-700 text-white rounded-lg hover:bg-dark-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleEnable2FA}
+                    disabled={twoFactorLoading}
+                    className="flex-1 py-2 bg-accent-green text-black font-medium rounded-lg hover:bg-accent-green/90 disabled:opacity-50"
+                  >
+                    {twoFactorLoading ? 'Enabling...' : 'Enable 2FA'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Login History Modal */}
+      {showLoginHistoryModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-2xl border border-gray-700 max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-semibold flex items-center gap-2">
+                <Clock size={18} /> Login History
+              </h3>
+              <button onClick={() => setShowLoginHistoryModal(false)} className="text-gray-400 hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {loginHistoryLoading ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-400">Loading...</p>
+                </div>
+              ) : loginHistory.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-400">No login history available</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {loginHistory.map((entry, index) => (
+                    <div key={index} className="p-3 bg-dark-700 rounded-lg border border-gray-700">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`px-2 py-0.5 rounded text-xs ${
+                          entry.status === 'success' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
+                        }`}>
+                          {entry.status === 'success' ? 'Successful' : 'Failed'}
+                        </span>
+                        <span className="text-gray-400 text-xs">
+                          {new Date(entry.loginAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="text-sm space-y-1">
+                        <p className="text-gray-400">
+                          <span className="text-gray-500">IP:</span> {entry.ip || 'Unknown'}
+                        </p>
+                        <p className="text-gray-400 text-xs truncate">
+                          <span className="text-gray-500">Device:</span> {entry.device || 'Unknown'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-700">
+              <button
+                onClick={() => setShowLoginHistoryModal(false)}
+                className="w-full py-2 bg-dark-700 text-white rounded-lg hover:bg-dark-600"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

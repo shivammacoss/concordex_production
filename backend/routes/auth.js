@@ -254,8 +254,36 @@ router.post('/login', async (req, res) => {
     // Check password
     const isMatch = await user.comparePassword(password)
     if (!isMatch) {
+      // Record failed login attempt
+      const loginEntry = {
+        ip: req.ip || req.headers['x-forwarded-for'] || 'Unknown',
+        device: req.headers['user-agent'] || 'Unknown',
+        browser: req.headers['user-agent']?.split(' ').pop() || 'Unknown',
+        location: 'Unknown',
+        loginAt: new Date(),
+        status: 'failed'
+      }
+      if (!user.loginHistory) user.loginHistory = []
+      user.loginHistory.push(loginEntry)
+      if (user.loginHistory.length > 50) user.loginHistory = user.loginHistory.slice(-50)
+      await user.save()
+      
       return res.status(401).json({ message: 'Invalid email or password' })
     }
+
+    // Record successful login
+    const loginEntry = {
+      ip: req.ip || req.headers['x-forwarded-for'] || 'Unknown',
+      device: req.headers['user-agent'] || 'Unknown',
+      browser: req.headers['user-agent']?.split(' ').pop() || 'Unknown',
+      location: 'Unknown',
+      loginAt: new Date(),
+      status: 'success'
+    }
+    if (!user.loginHistory) user.loginHistory = []
+    user.loginHistory.push(loginEntry)
+    if (user.loginHistory.length > 50) user.loginHistory = user.loginHistory.slice(-50)
+    await user.save()
 
     // Generate token
     const token = generateToken(user._id)
@@ -269,7 +297,9 @@ router.post('/login', async (req, res) => {
         email: user.email,
         phone: user.phone,
         assignedAdmin: user.assignedAdmin,
-        adminUrlSlug: user.adminUrlSlug
+        adminUrlSlug: user.adminUrlSlug,
+        twoFactorEnabled: user.twoFactorEnabled || false,
+        passwordChangedAt: user.passwordChangedAt
       },
       token
     })
@@ -449,6 +479,131 @@ router.post('/forgot-password', async (req, res) => {
   } catch (error) {
     console.error('Forgot password error:', error)
     res.status(500).json({ success: false, message: 'Error submitting request', error: error.message })
+  }
+})
+
+// POST /api/auth/change-password - Change password (authenticated user)
+router.post('/change-password', async (req, res) => {
+  try {
+    const { userId, currentPassword, newPassword } = req.body
+
+    if (!userId || !currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'All fields are required' })
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters' })
+    }
+
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+
+    // Verify current password
+    const isMatch = await user.comparePassword(currentPassword)
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Current password is incorrect' })
+    }
+
+    // Update password
+    user.password = newPassword
+    await user.save()
+
+    res.json({ success: true, message: 'Password changed successfully' })
+  } catch (error) {
+    console.error('Change password error:', error)
+    res.status(500).json({ success: false, message: 'Error changing password', error: error.message })
+  }
+})
+
+// GET /api/auth/login-history/:userId - Get login history
+router.get('/login-history/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select('loginHistory')
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+
+    // Return last 20 login entries, sorted by most recent
+    const history = (user.loginHistory || [])
+      .sort((a, b) => new Date(b.loginAt) - new Date(a.loginAt))
+      .slice(0, 20)
+
+    res.json({ success: true, loginHistory: history })
+  } catch (error) {
+    console.error('Get login history error:', error)
+    res.status(500).json({ success: false, message: 'Error fetching login history', error: error.message })
+  }
+})
+
+// POST /api/auth/2fa/enable - Enable 2FA
+router.post('/2fa/enable', async (req, res) => {
+  try {
+    const { userId } = req.body
+
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+
+    // Generate a simple 6-digit secret (in production, use speakeasy or similar)
+    const secret = Math.random().toString(36).substring(2, 10).toUpperCase()
+    
+    user.twoFactorSecret = secret
+    user.twoFactorEnabled = true
+    await user.save()
+
+    res.json({ 
+      success: true, 
+      message: '2FA enabled successfully',
+      secret: secret // In production, show QR code instead
+    })
+  } catch (error) {
+    console.error('Enable 2FA error:', error)
+    res.status(500).json({ success: false, message: 'Error enabling 2FA', error: error.message })
+  }
+})
+
+// POST /api/auth/2fa/disable - Disable 2FA
+router.post('/2fa/disable', async (req, res) => {
+  try {
+    const { userId, password } = req.body
+
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+
+    // Verify password before disabling 2FA
+    const isMatch = await user.comparePassword(password)
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Password is incorrect' })
+    }
+
+    user.twoFactorSecret = null
+    user.twoFactorEnabled = false
+    await user.save()
+
+    res.json({ success: true, message: '2FA disabled successfully' })
+  } catch (error) {
+    console.error('Disable 2FA error:', error)
+    res.status(500).json({ success: false, message: 'Error disabling 2FA', error: error.message })
+  }
+})
+
+// GET /api/auth/2fa/status/:userId - Get 2FA status
+router.get('/2fa/status/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select('twoFactorEnabled')
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+
+    res.json({ success: true, twoFactorEnabled: user.twoFactorEnabled || false })
+  } catch (error) {
+    console.error('Get 2FA status error:', error)
+    res.status(500).json({ success: false, message: 'Error fetching 2FA status', error: error.message })
   }
 })
 

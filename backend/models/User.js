@@ -141,7 +141,27 @@ const userSchema = new mongoose.Schema({
   passwordChangedAt: {
     type: Date,
     default: null
-  }
+  },
+  
+  // Two-Factor Authentication
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false
+  },
+  twoFactorSecret: {
+    type: String,
+    default: null
+  },
+  
+  // Login History
+  loginHistory: [{
+    ip: String,
+    device: String,
+    browser: String,
+    location: String,
+    loginAt: { type: Date, default: Date.now },
+    status: { type: String, enum: ['success', 'failed'], default: 'success' }
+  }]
 })
 
 // Hash password before saving
