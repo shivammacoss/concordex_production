@@ -257,14 +257,15 @@ const ProfilePage = () => {
           fetchUserCryptoWallets()
         }
       } else {
-        // Local withdrawal goes to bank requests in admin
+        // Local withdrawal goes to crypto requests with network='LOCAL'
         const payload = {
           userId: storedUser._id,
-          type: 'Local Withdrawal',
-          localAddress: cryptoForm.localAddress
+          type: 'local',
+          network: 'LOCAL',
+          walletAddress: cryptoForm.localAddress
         }
         
-        res = await fetch(`${API_URL}/payment-methods/user-banks`, {
+        res = await fetch(`${API_URL}/payment-methods/user-crypto`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -273,7 +274,7 @@ const ProfilePage = () => {
         
         if (data.success) {
           alert('Local withdrawal address submitted for approval!')
-          fetchUserBankAccounts()
+          fetchUserCryptoWallets()
         }
       }
       

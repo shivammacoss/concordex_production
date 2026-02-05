@@ -25,7 +25,7 @@ const seedAdmin = async () => {
     // Default admin credentials
     const adminData = {
       email: 'admin@concorddex.com',
-      password: '3',
+      password: 'admin123',
       firstName: 'Super',
       lastName: 'Admin'
     }
