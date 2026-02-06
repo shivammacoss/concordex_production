@@ -346,6 +346,7 @@ const AdminIBManagement = () => {
 
   const handleToggleIBStatus = async (ib) => {
     if (ib.ibStatus === 'ACTIVE') {
+      // Active -> Block
       const reason = prompt('Enter block reason:')
       if (!reason) return
       try {
@@ -361,7 +362,8 @@ const AdminIBManagement = () => {
       } catch (error) {
         console.error('Error blocking:', error)
       }
-    } else if (ib.ibStatus === 'BLOCKED') {
+    } else if (ib.ibStatus === 'BLOCKED' || ib.ibStatus === 'REJECTED' || ib.ibStatus === 'PENDING') {
+      // Blocked/Rejected/Pending -> Activate
       try {
         const res = await adminFetch(`/ib/admin/unblock/${ib._id}`, {
           method: 'PUT'
@@ -370,9 +372,12 @@ const AdminIBManagement = () => {
         if (data.success) {
           fetchIBs()
           fetchDashboard()
+        } else {
+          alert(data.message || 'Failed to activate IB')
         }
       } catch (error) {
-        console.error('Error unblocking:', error)
+        console.error('Error activating:', error)
+        alert('Failed to activate IB')
       }
     }
   }
