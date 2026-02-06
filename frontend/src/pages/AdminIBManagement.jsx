@@ -328,6 +328,55 @@ const AdminIBManagement = () => {
     }
   }
 
+  const handleUnblock = async (userId) => {
+    try {
+      const res = await adminFetch(`/ib/admin/unblock/${userId}`, {
+        method: 'PUT'
+      })
+      const data = await res.json()
+      if (data.success) {
+        alert('IB activated')
+        fetchIBs()
+        fetchDashboard()
+      }
+    } catch (error) {
+      console.error('Error unblocking:', error)
+    }
+  }
+
+  const handleToggleIBStatus = async (ib) => {
+    if (ib.ibStatus === 'ACTIVE') {
+      const reason = prompt('Enter block reason:')
+      if (!reason) return
+      try {
+        const res = await adminFetch(`/ib/admin/block/${ib._id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ reason })
+        })
+        const data = await res.json()
+        if (data.success) {
+          fetchIBs()
+          fetchDashboard()
+        }
+      } catch (error) {
+        console.error('Error blocking:', error)
+      }
+    } else if (ib.ibStatus === 'BLOCKED') {
+      try {
+        const res = await adminFetch(`/ib/admin/unblock/${ib._id}`, {
+          method: 'PUT'
+        })
+        const data = await res.json()
+        if (data.success) {
+          fetchIBs()
+          fetchDashboard()
+        }
+      } catch (error) {
+        console.error('Error unblocking:', error)
+      }
+    }
+  }
+
   const handleSuspend = async (ibId) => {
     if (!confirm('Are you sure you want to suspend this IB?')) return
 
@@ -528,6 +577,7 @@ const AdminIBManagement = () => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-700">
+                    <th className="text-center text-gray-500 text-sm font-medium py-3 px-4">Active</th>
                     <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">IB Partner</th>
                     <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Referral Code</th>
                     <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Plan</th>
@@ -540,6 +590,21 @@ const AdminIBManagement = () => {
                 <tbody>
                   {filteredIBs.map((ib) => (
                     <tr key={ib._id} className="border-b border-gray-800 hover:bg-dark-700/50">
+                      <td className="py-4 px-4 text-center">
+                        <button
+                          onClick={() => handleToggleIBStatus(ib)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            ib.ibStatus === 'ACTIVE' ? 'bg-green-500' : 'bg-gray-600'
+                          }`}
+                          title={ib.ibStatus === 'ACTIVE' ? 'Click to Block' : 'Click to Activate'}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              ib.ibStatus === 'ACTIVE' ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">

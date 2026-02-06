@@ -350,6 +350,16 @@ const IBPage = () => {
                 <p className="text-red-400 text-sm">Reason: {ibProfile.rejectionReason}</p>
               )}
             </div>
+          ) : (ibProfile.status === 'BLOCKED' || ibProfile.ibStatus === 'BLOCKED') ? (
+            /* Blocked */
+            <div className={`${isMobile ? '' : 'max-w-lg mx-auto'} text-center ${isMobile ? 'py-6' : 'py-12'}`}>
+              <div className={`${isMobile ? 'w-16 h-16' : 'w-20 h-20'} bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4`}>
+                <Award size={isMobile ? 32 : 40} className="text-red-500" />
+              </div>
+              <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-white mb-3`}>IB Account Blocked</h2>
+              <p className="text-gray-400 mb-2 text-sm">Your IB account has been blocked by the administrator.</p>
+              <p className="text-gray-500 text-sm">Please contact support for more information.</p>
+            </div>
           ) : (
             /* Active IB Dashboard */
             <div>

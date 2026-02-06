@@ -324,9 +324,20 @@ class TradeEngine {
       console.log(`Commission on close: $${closeCommission}`)
     }
     
-    // Calculate final PnL (commission already deducted on open, subtract swap and close commission)
+    // Calculate final PnL
+    // Note: Open commission was already deducted from balance when trade opened
+    // So realizedPnl should NOT include open commission (to avoid double-counting)
+    // realizedPnl = rawPnl - swap - closeCommission (for balance update)
+    // But for display, we show: rawPnl - openCommission - swap - closeCommission
     const rawPnl = this.calculatePnl(trade.side, trade.openPrice, closePrice, trade.quantity, trade.contractSize)
-    const realizedPnl = rawPnl - trade.swap - closeCommission
+    const openCommission = trade.commission || 0
+    
+    // realizedPnl for balance update (commission already deducted on open)
+    const realizedPnlForBalance = rawPnl - trade.swap - closeCommission
+    
+    // realizedPnl for display (includes all costs)
+    const realizedPnl = rawPnl - openCommission - trade.swap - closeCommission
+    console.log(`[TradeClose] rawPnl: ${rawPnl}, openCommission: ${openCommission}, swap: ${trade.swap}, closeCommission: ${closeCommission}, realizedPnl: ${realizedPnl}, realizedPnlForBalance: ${realizedPnlForBalance}`)
 
     // Update trade
     trade.closePrice = closePrice
@@ -346,12 +357,12 @@ class TradeEngine {
     // Update account balance with proper credit handling
     const account = await TradingAccount.findById(trade.tradingAccountId)
     
-    if (realizedPnl >= 0) {
+    if (realizedPnlForBalance >= 0) {
       // Profit: Add to balance only (credit stays the same)
-      account.balance += realizedPnl
+      account.balance += realizedPnlForBalance
     } else {
       // Loss: First deduct from balance, then from credit if balance insufficient
-      const loss = Math.abs(realizedPnl)
+      const loss = Math.abs(realizedPnlForBalance)
       
       if (account.balance >= loss) {
         // Balance can cover the loss
