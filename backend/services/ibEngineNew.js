@@ -3,6 +3,8 @@ import IBPlan from '../models/IBPlanNew.js'
 import IBCommission from '../models/IBCommissionNew.js'
 import IBWallet from '../models/IBWallet.js'
 import IBLevel from '../models/IBLevel.js'
+import Wallet from '../models/Wallet.js'
+import Transaction from '../models/Transaction.js'
 
 class IBEngine {
   constructor() {
@@ -454,25 +456,42 @@ class IBEngine {
     const user = await User.findById(ibUserId)
     if (!user || !user.isIB) throw new Error('IB not found')
 
-    const wallet = await IBWallet.getOrCreateWallet(ibUserId)
+    const ibWallet = await IBWallet.getOrCreateWallet(ibUserId)
     
-    if (amount > wallet.balance) {
+    if (amount > ibWallet.balance) {
       throw new Error('Insufficient IB wallet balance')
     }
 
     // Deduct from IB wallet
-    await wallet.requestWithdrawal(amount)
+    await ibWallet.requestWithdrawal(amount)
     
-    // Add to user's main wallet balance
-    user.walletBalance = (user.walletBalance || 0) + amount
-    await user.save()
+    // Add to user's main Wallet model (the one the dashboard reads)
+    let mainWallet = await Wallet.findOne({ userId: ibUserId })
+    if (!mainWallet) {
+      mainWallet = new Wallet({ userId: ibUserId, balance: 0 })
+    }
+    mainWallet.balance += amount
+    await mainWallet.save()
 
-    // Complete the withdrawal
-    await wallet.completeWithdrawal(amount)
+    // Create transaction record for audit trail
+    const transaction = new Transaction({
+      userId: ibUserId,
+      walletId: mainWallet._id,
+      type: 'Deposit',
+      amount,
+      paymentMethod: 'Internal',
+      transactionRef: `IB-WITHDRAW-${Date.now()}`,
+      status: 'Completed',
+      processedAt: new Date()
+    })
+    await transaction.save()
+
+    // Complete the withdrawal on IB wallet
+    await ibWallet.completeWithdrawal(amount)
 
     return {
-      ibWalletBalance: wallet.balance,
-      mainWalletBalance: user.walletBalance,
+      ibWalletBalance: ibWallet.balance,
+      mainWalletBalance: mainWallet.balance,
       withdrawnAmount: amount
     }
   }
