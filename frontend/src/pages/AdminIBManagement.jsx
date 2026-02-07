@@ -1497,12 +1497,49 @@ const LevelModal = ({ level, onSave, onClose, existingOrders }) => {
 
 // IB Details Modal Component
 const IBDetailsModal = ({ ib, plans, ibCommission, setIbCommission, ibPlan, setIbPlan, onSave, onClose, saving }) => {
+  const [ibHistory, setIbHistory] = useState([])
+  const [totalApplications, setTotalApplications] = useState(0)
+  const [historyLoading, setHistoryLoading] = useState(false)
+
+  useEffect(() => {
+    if (ib?._id) {
+      fetchHistory()
+    }
+  }, [ib?._id])
+
+  const fetchHistory = async () => {
+    setHistoryLoading(true)
+    try {
+      const res = await adminFetch(`/ib/admin/history/${ib._id}`)
+      const data = await res.json()
+      if (data.success) {
+        setIbHistory(data.history || [])
+        setTotalApplications(data.totalApplications || 0)
+      }
+    } catch (error) {
+      console.error('Error fetching IB history:', error)
+    }
+    setHistoryLoading(false)
+  }
+
+  const getActionColor = (action) => {
+    switch (action) {
+      case 'APPLIED': return 'text-blue-400 bg-blue-500/20'
+      case 'REAPPLIED': return 'text-yellow-400 bg-yellow-500/20'
+      case 'APPROVED': return 'text-green-400 bg-green-500/20'
+      case 'REJECTED': return 'text-red-400 bg-red-500/20'
+      case 'BLOCKED': return 'text-red-400 bg-red-500/20'
+      case 'UNBLOCKED': return 'text-green-400 bg-green-500/20'
+      default: return 'text-gray-400 bg-gray-500/20'
+    }
+  }
+
   if (!ib) return null
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-dark-800 rounded-xl w-full max-w-lg border border-gray-700">
-        <div className="p-5 border-b border-gray-700 flex items-center justify-between">
+      <div className="bg-dark-800 rounded-xl w-full max-w-lg border border-gray-700 max-h-[90vh] overflow-y-auto">
+        <div className="p-5 border-b border-gray-700 flex items-center justify-between sticky top-0 bg-dark-800 z-10">
           <h3 className="text-white font-semibold text-lg">IB Details</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
             <X size={20} />
@@ -1523,7 +1560,7 @@ const IBDetailsModal = ({ ib, plans, ibCommission, setIbCommission, ibPlan, setI
           </div>
 
           {/* Current Stats */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             <div className="bg-dark-700 rounded-lg p-3 text-center">
               <p className="text-gray-500 text-xs">Status</p>
               <p className={`font-semibold ${ib.ibStatus === 'ACTIVE' ? 'text-green-500' : ib.ibStatus === 'BLOCKED' ? 'text-red-500' : 'text-yellow-500'}`}>
@@ -1538,6 +1575,34 @@ const IBDetailsModal = ({ ib, plans, ibCommission, setIbCommission, ibPlan, setI
               <p className="text-gray-500 text-xs">Referrals</p>
               <p className="text-white font-semibold">{ib.referralCount || 0}</p>
             </div>
+            <div className="bg-dark-700 rounded-lg p-3 text-center">
+              <p className="text-gray-500 text-xs">Applications</p>
+              <p className="text-blue-400 font-semibold">{totalApplications}</p>
+            </div>
+          </div>
+
+          {/* Application History */}
+          <div>
+            <h4 className="text-white font-medium text-sm mb-2">Application History</h4>
+            {historyLoading ? (
+              <p className="text-gray-500 text-sm">Loading history...</p>
+            ) : ibHistory.length === 0 ? (
+              <p className="text-gray-500 text-sm">No history available</p>
+            ) : (
+              <div className="bg-dark-700 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                {ibHistory.slice().reverse().map((entry, idx) => (
+                  <div key={idx} className="flex items-start gap-3 text-sm">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${getActionColor(entry.action)}`}>
+                      {entry.action}
+                    </span>
+                    <div className="flex-1">
+                      {entry.reason && <p className="text-gray-400 text-xs">Reason: {entry.reason}</p>}
+                      <p className="text-gray-600 text-xs">{new Date(entry.date).toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* IB Level Selection */}

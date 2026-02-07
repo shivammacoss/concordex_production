@@ -38,6 +38,51 @@ router.post('/apply', async (req, res) => {
   }
 })
 
+// POST /api/ib/reapply - Reapply for IB (for blocked/rejected users)
+router.post('/reapply', async (req, res) => {
+  try {
+    const { userId } = req.body
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'User ID is required' })
+    }
+
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+
+    if (!user.isIB) {
+      return res.status(400).json({ success: false, message: 'User is not an IB' })
+    }
+
+    if (user.ibStatus === 'ACTIVE') {
+      return res.status(400).json({ success: false, message: 'IB is already active' })
+    }
+
+    if (user.ibStatus === 'PENDING') {
+      return res.status(400).json({ success: false, message: 'IB application is already pending' })
+    }
+
+    user.ibStatus = 'PENDING'
+    if (!user.ibApplicationHistory) user.ibApplicationHistory = []
+    user.ibApplicationHistory.push({ action: 'REAPPLIED', date: new Date() })
+    await user.save()
+
+    res.json({
+      success: true,
+      message: 'Reapplication submitted successfully. Please wait for admin approval.',
+      user: {
+        _id: user._id,
+        firstName: user.firstName,
+        ibStatus: user.ibStatus
+      }
+    })
+  } catch (error) {
+    console.error('Error reapplying for IB:', error)
+    res.status(400).json({ success: false, message: error.message })
+  }
+})
+
 // POST /api/ib/register-referral - Register with referral code
 router.post('/register-referral', async (req, res) => {
   try {
@@ -97,6 +142,7 @@ router.get('/my-profile/:userId', async (req, res) => {
         email: user.email,
         referralCode: user.referralCode,
         ibStatus: user.ibStatus,
+        ibRejectionReason: user.ibRejectionReason,
         ibLevel: user.ibLevel,
         ibLevelOrder: user.ibLevelOrder,
         ibLevelId: user.ibLevelId,
@@ -273,6 +319,8 @@ router.put('/admin/reject/:userId', async (req, res) => {
 
     user.ibStatus = 'REJECTED'
     user.ibRejectionReason = reason
+    if (!user.ibApplicationHistory) user.ibApplicationHistory = []
+    user.ibApplicationHistory.push({ action: 'REJECTED', reason: reason || '', date: new Date() })
     await user.save()
 
     res.json({
@@ -320,6 +368,8 @@ router.put('/admin/unblock/:userId', async (req, res) => {
     if (!user) throw new Error('User not found')
 
     user.ibStatus = 'ACTIVE'
+    if (!user.ibApplicationHistory) user.ibApplicationHistory = []
+    user.ibApplicationHistory.push({ action: 'UNBLOCKED', date: new Date() })
     await user.save()
 
     res.json({
@@ -333,6 +383,24 @@ router.put('/admin/unblock/:userId', async (req, res) => {
     })
   } catch (error) {
     console.error('Error unblocking IB:', error)
+    res.status(400).json({ success: false, message: error.message })
+  }
+})
+
+// GET /api/ib/admin/history/:userId - Get IB application history
+router.get('/admin/history/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params
+    const user = await User.findById(userId).select('firstName email ibStatus ibApplicationHistory')
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' })
+
+    res.json({
+      success: true,
+      history: user.ibApplicationHistory || [],
+      totalApplications: (user.ibApplicationHistory || []).filter(h => h.action === 'APPLIED' || h.action === 'REAPPLIED').length
+    })
+  } catch (error) {
+    console.error('Error fetching IB history:', error)
     res.status(400).json({ success: false, message: error.message })
   }
 })

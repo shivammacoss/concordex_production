@@ -56,6 +56,9 @@ class IBEngine {
     user.ibStatus = 'PENDING'
     user.referralCode = referralCode
     
+    if (!user.ibApplicationHistory) user.ibApplicationHistory = []
+    user.ibApplicationHistory.push({ action: 'APPLIED', date: new Date() })
+    
     // If user was referred by an IB, set parent and level
     if (user.referredBy) {
       const parentIB = await User.findOne({ 
@@ -96,6 +99,9 @@ class IBEngine {
       user.ibPlanId = defaultPlan._id
     }
 
+    if (!user.ibApplicationHistory) user.ibApplicationHistory = []
+    user.ibApplicationHistory.push({ action: 'APPROVED', date: new Date() })
+
     await user.save()
     return user
   }
@@ -106,6 +112,8 @@ class IBEngine {
     if (!user) throw new Error('User not found')
 
     user.ibStatus = 'BLOCKED'
+    if (!user.ibApplicationHistory) user.ibApplicationHistory = []
+    user.ibApplicationHistory.push({ action: 'BLOCKED', reason: reason || '', date: new Date() })
     await user.save()
     return user
   }

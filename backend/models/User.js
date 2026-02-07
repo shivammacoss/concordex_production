@@ -89,6 +89,12 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  ibApplicationHistory: [{
+    action: { type: String, enum: ['APPLIED', 'REAPPLIED', 'APPROVED', 'REJECTED', 'BLOCKED', 'UNBLOCKED'] },
+    reason: { type: String, default: '' },
+    adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', default: null },
+    date: { type: Date, default: Date.now }
+  }],
   referredBy: {
     type: String,
     default: null

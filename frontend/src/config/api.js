@@ -1,5 +1,5 @@
 // API Configuration - Use environment variable for production
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001'
 export const API_URL = `${API_BASE_URL}/api`
 
 // Helper to construct full URL for uploaded files (screenshots, etc.)

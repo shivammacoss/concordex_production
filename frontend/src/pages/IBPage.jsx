@@ -159,6 +159,33 @@ const IBPage = () => {
     setApplying(false)
   }
 
+  const handleReapply = async () => {
+    setApplying(true)
+    try {
+      const res = await fetch(`${API_URL}/ib/reapply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user._id })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setIbProfile({
+          ...ibProfile,
+          status: 'PENDING',
+          ibStatus: 'PENDING'
+        })
+        alert('Reapplication submitted successfully! Please wait for admin approval.')
+        setTimeout(() => fetchIBProfile(), 500)
+      } else {
+        alert(data.message || 'Failed to reapply')
+      }
+    } catch (error) {
+      console.error('Error reapplying:', error)
+      alert('Failed to submit reapplication')
+    }
+    setApplying(false)
+  }
+
   const handleWithdraw = async () => {
     if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
       alert('Please enter a valid amount')
@@ -346,9 +373,16 @@ const IBPage = () => {
               </div>
               <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-white mb-3`}>Application Rejected</h2>
               <p className="text-gray-400 mb-2 text-sm">Unfortunately, your IB application was not approved.</p>
-              {ibProfile.rejectionReason && (
-                <p className="text-red-400 text-sm">Reason: {ibProfile.rejectionReason}</p>
+              {(ibProfile.rejectionReason || ibProfile.ibRejectionReason) && (
+                <p className="text-red-400 text-sm mb-4">Reason: {ibProfile.rejectionReason || ibProfile.ibRejectionReason}</p>
               )}
+              <button
+                onClick={handleReapply}
+                disabled={applying}
+                className="bg-accent-green text-black px-8 py-3 rounded-lg font-semibold hover:bg-accent-green/90 disabled:opacity-50 mt-4"
+              >
+                {applying ? 'Submitting...' : 'Reapply for IB'}
+              </button>
             </div>
           ) : (ibProfile.status === 'BLOCKED' || ibProfile.ibStatus === 'BLOCKED') ? (
             /* Blocked */
@@ -358,7 +392,14 @@ const IBPage = () => {
               </div>
               <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-white mb-3`}>IB Account Blocked</h2>
               <p className="text-gray-400 mb-2 text-sm">Your IB account has been blocked by the administrator.</p>
-              <p className="text-gray-500 text-sm">Please contact support for more information.</p>
+              <p className="text-gray-500 text-sm mb-4">Please contact support for more information.</p>
+              <button
+                onClick={handleReapply}
+                disabled={applying}
+                className="bg-accent-green text-black px-8 py-3 rounded-lg font-semibold hover:bg-accent-green/90 disabled:opacity-50"
+              >
+                {applying ? 'Submitting...' : 'Reapply for IB'}
+              </button>
             </div>
           ) : (
             /* Active IB Dashboard */
