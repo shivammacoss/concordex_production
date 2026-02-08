@@ -255,6 +255,10 @@ app.get('/', (req, res) => {
   res.json({ message: 'Concorddex API is running' })
 })
 
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Concorddex API is running', timestamp: new Date().toISOString() })
+})
+
 const PORT = process.env.PORT || 5000
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)

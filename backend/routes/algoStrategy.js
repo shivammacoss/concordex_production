@@ -27,6 +27,14 @@ router.get('/masters/list', async (req, res) => {
 // Get all strategies
 router.get('/', async (req, res) => {
   try {
+    // Auto-generate missing buy/sell secrets for existing strategies
+    const needSecrets = await AlgoStrategy.find({
+      $or: [{ buyWebhookSecret: { $exists: false } }, { sellWebhookSecret: { $exists: false } }, { buyWebhookSecret: null }, { sellWebhookSecret: null }]
+    })
+    for (const s of needSecrets) {
+      await s.save() // pre-save hook generates missing secrets
+    }
+
     const strategies = await AlgoStrategy.find()
       .populate({
         path: 'masterTraderIds',
@@ -148,7 +156,9 @@ router.post('/', async (req, res) => {
       success: true,
       message: 'Strategy created successfully',
       strategy,
-      webhookSecret: strategy.webhookSecret
+      webhookSecret: strategy.webhookSecret,
+      buyWebhookSecret: strategy.buyWebhookSecret,
+      sellWebhookSecret: strategy.sellWebhookSecret
     })
   } catch (error) {
     console.error('Error creating strategy:', error)

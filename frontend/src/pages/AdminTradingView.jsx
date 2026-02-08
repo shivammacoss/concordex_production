@@ -36,13 +36,21 @@ const AdminTradingView = () => {
   const [showNewStrategy, setShowNewStrategy] = useState(false)
   const [masterTraders, setMasterTraders] = useState([])
   const [createdSecret, setCreatedSecret] = useState('')
+  const [createdBuySecret, setCreatedBuySecret] = useState('')
+  const [createdSellSecret, setCreatedSellSecret] = useState('')
   const [showSecretModal, setShowSecretModal] = useState(null) // stores strategy object when showing secret
+  const [secretTab, setSecretTab] = useState('buy') // 'buy' or 'sell' tab for webhook alerts
+  const [formTab, setFormTab] = useState('buy') // 'buy' or 'sell' tab on creation form
   const [newStrategy, setNewStrategy] = useState({
     name: '',
     description: '',
     symbol: '',
     timeframe: '1H',
     defaultQuantity: 0.01,
+    buyEntry: '',
+    buyExit: '',
+    sellEntry: '',
+    sellExit: '',
     copyTradingEnabled: false,
     masterTraderIds: []
   })
@@ -270,15 +278,22 @@ const AdminTradingView = () => {
       if (data.success) {
         setStrategies(prev => [...prev, data.strategy])
         setCreatedSecret(data.webhookSecret)
+        setCreatedBuySecret(data.buyWebhookSecret)
+        setCreatedSellSecret(data.sellWebhookSecret)
         setNewStrategy({
           name: '',
           description: '',
           symbol: '',
           timeframe: '1H',
           defaultQuantity: 0.01,
+          buyEntry: '',
+          buyExit: '',
+          sellEntry: '',
+          sellExit: '',
           copyTradingEnabled: false,
           masterTraderIds: []
         })
+        setFormTab('buy')
         // Don't close modal immediately - show webhook secret first
       } else {
         alert(data.message || 'Failed to create strategy')
@@ -817,21 +832,87 @@ const AdminTradingView = () => {
               <div className="space-y-4">
                 <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-4">
                   <p className="text-green-400 font-medium mb-2">Strategy Created Successfully!</p>
-                  <p className="text-gray-400 text-sm mb-3">Save this webhook secret - you'll need it for TradingView alerts:</p>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 bg-dark-900 px-3 py-2 rounded text-yellow-400 text-sm break-all">
-                      {createdSecret}
-                    </code>
-                    <button
-                      onClick={() => copyToClipboard(createdSecret)}
-                      className="p-2 bg-dark-700 hover:bg-dark-600 rounded transition-colors"
-                    >
-                      <Copy size={16} className="text-gray-400" />
-                    </button>
-                  </div>
+                  <p className="text-gray-400 text-sm mb-3">Save these webhook secrets - each side has its own secret key:</p>
                 </div>
+
+                {/* Buy / Sell Tabs */}
+                <div className="flex gap-2 mb-2">
+                  <button
+                    onClick={() => setSecretTab('buy')}
+                    className={`flex-1 py-2 rounded-lg font-medium text-sm transition-colors ${
+                      secretTab === 'buy' ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-dark-700 text-gray-400 border border-gray-700 hover:text-white'
+                    }`}
+                  >
+                    <ArrowUpCircle size={14} className="inline mr-1" /> BUY (Long)
+                  </button>
+                  <button
+                    onClick={() => setSecretTab('sell')}
+                    className={`flex-1 py-2 rounded-lg font-medium text-sm transition-colors ${
+                      secretTab === 'sell' ? 'bg-red-500/20 text-red-400 border border-red-500/50' : 'bg-dark-700 text-gray-400 border border-gray-700 hover:text-white'
+                    }`}
+                  >
+                    <ArrowDownCircle size={14} className="inline mr-1" /> SELL (Short)
+                  </button>
+                </div>
+
+                <div className="bg-dark-900 rounded-lg p-4 space-y-4">
+                  {secretTab === 'buy' ? (
+                    <>
+                      <div>
+                        <p className="text-green-400 text-xs mb-1 font-medium">Buy Secret Key:</p>
+                        <div className="flex items-center gap-2 mb-3">
+                          <code className="flex-1 bg-dark-800 px-2 py-1.5 rounded text-green-400 text-xs break-all">
+                            {createdBuySecret}
+                          </code>
+                          <button onClick={() => copyToClipboard(createdBuySecret)} className="p-1.5 bg-dark-700 hover:bg-dark-600 rounded transition-colors">
+                            <Copy size={14} className="text-gray-400" />
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-green-400 text-xs mb-2 font-medium">📈 BUY ENTRY Alert Message:</p>
+                        <pre className="text-gray-300 text-xs overflow-x-auto bg-dark-800 p-2 rounded">
+{`{\n  "secret": "${createdBuySecret}",\n  "action": "buy",\n  "symbol": "${newStrategy.symbol || '{{ticker}}'}",\n  "price": {{close}},\n  "quantity": ${newStrategy.defaultQuantity}\n}`}
+                        </pre>
+                      </div>
+                      <div>
+                        <p className="text-yellow-400 text-xs mb-2 font-medium">🔄 BUY EXIT (Close Long) Alert Message:</p>
+                        <pre className="text-gray-300 text-xs overflow-x-auto bg-dark-800 p-2 rounded">
+{`{\n  "secret": "${createdBuySecret}",\n  "action": "close",\n  "symbol": "${newStrategy.symbol || '{{ticker}}'}",\n  "price": {{close}}\n}`}
+                        </pre>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <p className="text-red-400 text-xs mb-1 font-medium">Sell Secret Key:</p>
+                        <div className="flex items-center gap-2 mb-3">
+                          <code className="flex-1 bg-dark-800 px-2 py-1.5 rounded text-red-400 text-xs break-all">
+                            {createdSellSecret}
+                          </code>
+                          <button onClick={() => copyToClipboard(createdSellSecret)} className="p-1.5 bg-dark-700 hover:bg-dark-600 rounded transition-colors">
+                            <Copy size={14} className="text-gray-400" />
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-red-400 text-xs mb-2 font-medium">📉 SELL ENTRY Alert Message:</p>
+                        <pre className="text-gray-300 text-xs overflow-x-auto bg-dark-800 p-2 rounded">
+{`{\n  "secret": "${createdSellSecret}",\n  "action": "sell",\n  "symbol": "${newStrategy.symbol || '{{ticker}}'}",\n  "price": {{close}},\n  "quantity": ${newStrategy.defaultQuantity}\n}`}
+                        </pre>
+                      </div>
+                      <div>
+                        <p className="text-yellow-400 text-xs mb-2 font-medium">🔄 SELL EXIT (Close Short) Alert Message:</p>
+                        <pre className="text-gray-300 text-xs overflow-x-auto bg-dark-800 p-2 rounded">
+{`{\n  "secret": "${createdSellSecret}",\n  "action": "close",\n  "symbol": "${newStrategy.symbol || '{{ticker}}'}",\n  "price": {{close}}\n}`}
+                        </pre>
+                      </div>
+                    </>
+                  )}
+                </div>
+
                 <button
-                  onClick={() => { setShowNewStrategy(false); setCreatedSecret(''); }}
+                  onClick={() => { setShowNewStrategy(false); setCreatedSecret(''); setCreatedBuySecret(''); setCreatedSellSecret(''); setSecretTab('buy'); }}
                   className="w-full py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-medium rounded-lg transition-colors"
                 >
                   Done
@@ -920,6 +1001,51 @@ const AdminTradingView = () => {
                     onChange={(e) => setNewStrategy(prev => ({ ...prev, defaultQuantity: parseFloat(e.target.value) || 0.01 }))}
                     className="w-full bg-dark-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
                   />
+                </div>
+
+                {/* Buy / Sell Entry & Exit */}
+                <div className="border-t border-gray-700 pt-4">
+                  <label className="text-gray-400 text-sm block mb-2">Trade Entry & Exit Prices</label>
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormTab('buy')}
+                      className={`flex-1 py-2 rounded-lg font-medium text-sm transition-colors ${
+                        formTab === 'buy' ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-dark-700 text-gray-400 border border-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <ArrowUpCircle size={14} className="inline mr-1" /> BUY (Long)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormTab('sell')}
+                      className={`flex-1 py-2 rounded-lg font-medium text-sm transition-colors ${
+                        formTab === 'sell' ? 'bg-red-500/20 text-red-400 border border-red-500/50' : 'bg-dark-700 text-gray-400 border border-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <ArrowDownCircle size={14} className="inline mr-1" /> SELL (Short)
+                    </button>
+                  </div>
+
+                  {formTab === 'buy' ? (
+                    <div className="bg-dark-900 border border-green-500/20 rounded-lg p-3">
+                      <p className="text-green-400 text-xs font-medium mb-1">📈 Buy Entry</p>
+                      <p className="text-gray-500 text-xs">Opens a long position when TradingView sends a BUY alert</p>
+                      <div className="border-t border-gray-700 mt-2 pt-2">
+                        <p className="text-yellow-400 text-xs font-medium mb-1">🔄 Buy Exit</p>
+                        <p className="text-gray-500 text-xs">Closes the long position when TradingView sends a CLOSE alert</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-dark-900 border border-red-500/20 rounded-lg p-3">
+                      <p className="text-red-400 text-xs font-medium mb-1">📉 Sell Entry</p>
+                      <p className="text-gray-500 text-xs">Opens a short position when TradingView sends a SELL alert</p>
+                      <div className="border-t border-gray-700 mt-2 pt-2">
+                        <p className="text-yellow-400 text-xs font-medium mb-1">🔄 Sell Exit</p>
+                        <p className="text-gray-500 text-xs">Closes the short position when TradingView sends a CLOSE alert</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t border-gray-700 pt-4">
@@ -1013,51 +1139,85 @@ const AdminTradingView = () => {
                 <p className="text-gray-400 text-sm mb-4">Use this secret in your TradingView alerts to authenticate webhooks.</p>
               </div>
 
-              <div className="bg-dark-900 rounded-lg p-4 border border-yellow-500/30">
-                <p className="text-yellow-400 text-xs mb-2 font-medium">WEBHOOK SECRET (Click to copy)</p>
-                <div className="flex items-center gap-2">
-                  <code className="text-green-400 text-sm break-all flex-1 font-mono">{showSecretModal.webhookSecret}</code>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(showSecretModal.webhookSecret)
-                      alert('Copied!')
-                    }}
-                    className="p-2 bg-yellow-500/20 hover:bg-yellow-500/30 rounded-lg transition-colors"
-                  >
-                    <Copy size={16} className="text-yellow-400" />
-                  </button>
-                </div>
+              {/* Buy / Sell Tabs */}
+              <div className="flex gap-2 mb-2">
+                <button
+                  onClick={() => setSecretTab('buy')}
+                  className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+                    secretTab === 'buy' ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-dark-700 text-gray-400 border border-gray-700 hover:text-white'
+                  }`}
+                >
+                  <ArrowUpCircle size={14} className="inline mr-1" /> BUY (Long)
+                </button>
+                <button
+                  onClick={() => setSecretTab('sell')}
+                  className={`flex-1 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+                    secretTab === 'sell' ? 'bg-red-500/20 text-red-400 border border-red-500/50' : 'bg-dark-700 text-gray-400 border border-gray-700 hover:text-white'
+                  }`}
+                >
+                  <ArrowDownCircle size={14} className="inline mr-1" /> SELL (Short)
+                </button>
               </div>
 
               <div className="bg-dark-900 rounded-lg p-4 space-y-4">
-                <div>
-                  <p className="text-green-400 text-xs mb-2 font-medium">📈 ENTRY (BUY) Alert Message:</p>
-                  <pre className="text-gray-300 text-xs overflow-x-auto bg-dark-800 p-2 rounded">
-{`{
-  "secret": "${showSecretModal.webhookSecret}",
-  "action": "buy",
-  "symbol": "${showSecretModal.symbol}",
-  "price": {{close}},
-  "quantity": ${showSecretModal.defaultQuantity}
-}`}
-                  </pre>
-                </div>
-                <div>
-                  <p className="text-red-400 text-xs mb-2 font-medium">📉 EXIT (CLOSE) Alert Message:</p>
-                  <pre className="text-gray-300 text-xs overflow-x-auto bg-dark-800 p-2 rounded">
-{`{
-  "secret": "${showSecretModal.webhookSecret}",
-  "action": "close",
-  "symbol": "${showSecretModal.symbol}",
-  "price": {{close}}
-}`}
-                  </pre>
-                </div>
+                {secretTab === 'buy' ? (
+                  <>
+                    <div>
+                      <p className="text-green-400 text-xs mb-1 font-medium">Buy Secret Key:</p>
+                      <div className="flex items-center gap-2 mb-3">
+                        <code className="flex-1 bg-dark-800 px-2 py-1.5 rounded text-green-400 text-xs break-all">
+                          {showSecretModal.buyWebhookSecret || showSecretModal.webhookSecret}
+                        </code>
+                        <button onClick={() => copyToClipboard(showSecretModal.buyWebhookSecret || showSecretModal.webhookSecret)} className="p-1.5 bg-dark-700 hover:bg-dark-600 rounded transition-colors">
+                          <Copy size={14} className="text-gray-400" />
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-green-400 text-xs mb-2 font-medium">📈 BUY ENTRY Alert Message:</p>
+                      <pre className="text-gray-300 text-xs overflow-x-auto bg-dark-800 p-2 rounded">
+{`{\n  "secret": "${showSecretModal.buyWebhookSecret || showSecretModal.webhookSecret}",\n  "action": "buy",\n  "symbol": "${showSecretModal.symbol}",\n  "price": {{close}},\n  "quantity": ${showSecretModal.defaultQuantity}\n}`}
+                      </pre>
+                    </div>
+                    <div>
+                      <p className="text-yellow-400 text-xs mb-2 font-medium">🔄 BUY EXIT (Close Long) Alert Message:</p>
+                      <pre className="text-gray-300 text-xs overflow-x-auto bg-dark-800 p-2 rounded">
+{`{\n  "secret": "${showSecretModal.buyWebhookSecret || showSecretModal.webhookSecret}",\n  "action": "close",\n  "symbol": "${showSecretModal.symbol}",\n  "price": {{close}}\n}`}
+                      </pre>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-red-400 text-xs mb-1 font-medium">Sell Secret Key:</p>
+                      <div className="flex items-center gap-2 mb-3">
+                        <code className="flex-1 bg-dark-800 px-2 py-1.5 rounded text-red-400 text-xs break-all">
+                          {showSecretModal.sellWebhookSecret || showSecretModal.webhookSecret}
+                        </code>
+                        <button onClick={() => copyToClipboard(showSecretModal.sellWebhookSecret || showSecretModal.webhookSecret)} className="p-1.5 bg-dark-700 hover:bg-dark-600 rounded transition-colors">
+                          <Copy size={14} className="text-gray-400" />
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-red-400 text-xs mb-2 font-medium">📉 SELL ENTRY Alert Message:</p>
+                      <pre className="text-gray-300 text-xs overflow-x-auto bg-dark-800 p-2 rounded">
+{`{\n  "secret": "${showSecretModal.sellWebhookSecret || showSecretModal.webhookSecret}",\n  "action": "sell",\n  "symbol": "${showSecretModal.symbol}",\n  "price": {{close}},\n  "quantity": ${showSecretModal.defaultQuantity}\n}`}
+                      </pre>
+                    </div>
+                    <div>
+                      <p className="text-yellow-400 text-xs mb-2 font-medium">🔄 SELL EXIT (Close Short) Alert Message:</p>
+                      <pre className="text-gray-300 text-xs overflow-x-auto bg-dark-800 p-2 rounded">
+{`{\n  "secret": "${showSecretModal.sellWebhookSecret || showSecretModal.webhookSecret}",\n  "action": "close",\n  "symbol": "${showSecretModal.symbol}",\n  "price": {{close}}\n}`}
+                      </pre>
+                    </div>
+                  </>
+                )}
                 <p className="text-gray-500 text-xs">Actions: <code className="text-yellow-400">buy</code>, <code className="text-yellow-400">sell</code>, <code className="text-yellow-400">close</code>, <code className="text-yellow-400">close_all</code></p>
               </div>
 
               <button
-                onClick={() => setShowSecretModal(null)}
+                onClick={() => { setShowSecretModal(null); setSecretTab('buy'); }}
                 className="w-full py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-medium rounded-lg transition-colors"
               >
                 Done

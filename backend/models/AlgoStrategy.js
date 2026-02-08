@@ -25,10 +25,25 @@ const algoStrategySchema = new mongoose.Schema({
     default: 0.01,
     min: 0.01
   },
-  // Webhook secret for this strategy (auto-generated in pre-save hook)
+  // Buy/Sell entry and exit prices
+  buyEntry: { type: Number, default: null },
+  buyExit: { type: Number, default: null },
+  sellEntry: { type: Number, default: null },
+  sellExit: { type: Number, default: null },
+  // Webhook secrets for this strategy (auto-generated in pre-save hook)
   webhookSecret: {
     type: String,
     unique: true
+  },
+  buyWebhookSecret: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  sellWebhookSecret: {
+    type: String,
+    unique: true,
+    sparse: true
   },
   // Copy trading integration
   copyTradingEnabled: {
@@ -74,10 +89,16 @@ const algoStrategySchema = new mongoose.Schema({
   }
 }, { timestamps: true })
 
-// Generate unique webhook secret before saving
+// Generate unique webhook secrets before saving
 algoStrategySchema.pre('save', function(next) {
   if (!this.webhookSecret) {
     this.webhookSecret = crypto.randomBytes(32).toString('hex')
+  }
+  if (!this.buyWebhookSecret) {
+    this.buyWebhookSecret = crypto.randomBytes(32).toString('hex')
+  }
+  if (!this.sellWebhookSecret) {
+    this.sellWebhookSecret = crypto.randomBytes(32).toString('hex')
   }
   next()
 })

@@ -44,9 +44,11 @@ router.post('/webhook', async (req, res) => {
       })
     }
 
-    // Find strategy by webhook secret or global secret
+    // Find strategy by webhook secret (main, buy-specific, or sell-specific)
     let strategy = null
+    let secretType = 'main' // 'main', 'buy', or 'sell'
     if (secret) {
+      // Try main webhook secret first
       strategy = await AlgoStrategy.findOne({ webhookSecret: secret, status: 'ACTIVE' })
         .populate({
           path: 'masterTraderIds',
@@ -54,6 +56,30 @@ router.post('/webhook', async (req, res) => {
             path: 'tradingAccountId'
           }
         })
+      
+      // Try buy-specific secret
+      if (!strategy) {
+        strategy = await AlgoStrategy.findOne({ buyWebhookSecret: secret, status: 'ACTIVE' })
+          .populate({
+            path: 'masterTraderIds',
+            populate: {
+              path: 'tradingAccountId'
+            }
+          })
+        if (strategy) secretType = 'buy'
+      }
+
+      // Try sell-specific secret
+      if (!strategy) {
+        strategy = await AlgoStrategy.findOne({ sellWebhookSecret: secret, status: 'ACTIVE' })
+          .populate({
+            path: 'masterTraderIds',
+            populate: {
+              path: 'tradingAccountId'
+            }
+          })
+        if (strategy) secretType = 'sell'
+      }
       
       // If not found by strategy secret, check global webhook secret
       if (!strategy && secret === process.env.TRADINGVIEW_WEBHOOK_SECRET) {
@@ -64,6 +90,27 @@ router.post('/webhook', async (req, res) => {
           success: false,
           message: 'Invalid webhook secret'
         })
+      }
+
+      // Validate action matches the secret type
+      if (strategy && secretType === 'buy') {
+        const normalizedAction = action.toUpperCase()
+        if (normalizedAction === 'SELL') {
+          return res.status(403).json({
+            success: false,
+            message: 'Buy secret cannot be used for SELL action. Use the sell webhook secret.'
+          })
+        }
+        console.log(`[TradingView] Using BUY webhook secret for strategy: ${strategy.name}`)
+      } else if (strategy && secretType === 'sell') {
+        const normalizedAction = action.toUpperCase()
+        if (normalizedAction === 'BUY') {
+          return res.status(403).json({
+            success: false,
+            message: 'Sell secret cannot be used for BUY action. Use the buy webhook secret.'
+          })
+        }
+        console.log(`[TradingView] Using SELL webhook secret for strategy: ${strategy.name}`)
       }
     } else {
       return res.status(401).json({
