@@ -33,7 +33,6 @@ const CopyTradePage = () => {
   const [myMasterProfiles, setMyMasterProfiles] = useState([]) // All strategies
   const [selectedMasterProfile, setSelectedMasterProfile] = useState(null) // Currently selected strategy
   const [showMasterModal, setShowMasterModal] = useState(false)
-  const [showMultipleMasterModal, setShowMultipleMasterModal] = useState(false) // Multiple master modal
   const [masterForm, setMasterForm] = useState({
     displayName: '',
     description: '',
@@ -42,10 +41,6 @@ const CopyTradePage = () => {
     requestedCommissionPercentage: 10,
     commissionPaymentFrequency: 'daily' // 'daily' or 'weekly'
   })
-  // Multiple master form - array of strategies
-  const [multipleMasterForms, setMultipleMasterForms] = useState([
-    { displayName: '', description: '', tradingAccountId: '', requestedCommissionPercentage: 10 }
-  ])
   const [applyingMaster, setApplyingMaster] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   
@@ -250,101 +245,6 @@ const CopyTradePage = () => {
     setApplyingMaster(false)
   }
 
-  // Handle multiple master accounts submission
-  const handleApplyMultipleMasters = async () => {
-    // Validate all forms
-    for (let i = 0; i < multipleMasterForms.length; i++) {
-      const form = multipleMasterForms[i]
-      if (!form.displayName.trim()) {
-        alert(`Strategy ${i + 1}: Please enter a display name`)
-        return
-      }
-      if (!form.tradingAccountId && accounts.length === 0) {
-        alert(`Strategy ${i + 1}: Please select a trading account`)
-        return
-      }
-      if (form.requestedCommissionPercentage < commissionSettings.minCommissionPercentage || 
-          form.requestedCommissionPercentage > commissionSettings.maxCommissionPercentage) {
-        alert(`Strategy ${i + 1}: Commission must be between ${commissionSettings.minCommissionPercentage}% and ${commissionSettings.maxCommissionPercentage}%`)
-        return
-      }
-    }
-
-    // Check if total strategies would exceed limit
-    if (myMasterProfiles.length + multipleMasterForms.length > 5) {
-      alert(`You can only have 5 strategies. You have ${myMasterProfiles.length} and trying to add ${multipleMasterForms.length}.`)
-      return
-    }
-
-    setApplyingMaster(true)
-    let successCount = 0
-    let failedCount = 0
-
-    let lastError = ''
-    for (const form of multipleMasterForms) {
-      try {
-        const accountId = form.tradingAccountId || (accounts.length > 0 ? accounts[0]._id : '')
-        console.log('Creating strategy with:', { userId: user._id, displayName: form.displayName, tradingAccountId: accountId })
-        const res = await fetch(`${API_URL}/copy/master/apply`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: user._id,
-            displayName: form.displayName,
-            description: form.description || '',
-            tradingAccountId: accountId,
-            requestedCommissionPercentage: form.requestedCommissionPercentage || 10,
-            strategyName: form.displayName
-          })
-        })
-        const data = await res.json()
-        console.log('Response:', data)
-        if (data.master) {
-          successCount++
-        } else {
-          failedCount++
-          lastError = data.message || 'Unknown error'
-        }
-      } catch (error) {
-        console.error('Error creating strategy:', error)
-        failedCount++
-        lastError = error.message
-      }
-    }
-
-    if (successCount > 0) {
-      alert(`Successfully created ${successCount} strategies!${failedCount > 0 ? ` (${failedCount} failed)` : ''}`)
-      setShowMultipleMasterModal(false)
-      setMultipleMasterForms([{ displayName: '', description: '', tradingAccountId: '', requestedCommissionPercentage: 10 }])
-      fetchMyMasterProfile()
-    } else {
-      alert(`Failed to create strategies: ${lastError}`)
-    }
-    setApplyingMaster(false)
-  }
-
-  // Add new strategy form
-  const addStrategyForm = () => {
-    if (myMasterProfiles.length + multipleMasterForms.length >= 5) {
-      alert('Maximum 5 strategies allowed')
-      return
-    }
-    setMultipleMasterForms([...multipleMasterForms, { displayName: '', description: '', tradingAccountId: '', requestedCommissionPercentage: 10 }])
-  }
-
-  // Remove strategy form
-  const removeStrategyForm = (index) => {
-    if (multipleMasterForms.length === 1) return
-    setMultipleMasterForms(multipleMasterForms.filter((_, i) => i !== index))
-  }
-
-  // Update strategy form
-  const updateStrategyForm = (index, field, value) => {
-    const updated = [...multipleMasterForms]
-    updated[index][field] = value
-    setMultipleMasterForms(updated)
-  }
-
   const handleFollow = async () => {
     if (!selectedMaster || !selectedAccount) return
 
@@ -545,14 +445,6 @@ const CopyTradePage = () => {
             >
               <Crown size={16} />
               Open Master Account
-            </button>
-            <button
-              onClick={() => setShowMultipleMasterModal(true)}
-              className={`bg-gradient-to-r from-purple-500 to-blue-500 text-white ${isMobile ? 'px-3 py-2 text-sm' : 'px-4 py-2 text-sm'} rounded-lg font-medium hover:from-purple-400 hover:to-blue-400 flex items-center justify-center gap-2 ${myMasterProfiles.length >= 5 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              disabled={myMasterProfiles.length >= 5}
-            >
-              <Users size={16} />
-              Multiple Master Account
             </button>
           </div>
 
@@ -1151,127 +1043,6 @@ const CopyTradePage = () => {
                 className="flex-1 bg-yellow-500 text-black py-2 rounded-lg font-medium hover:bg-yellow-400 disabled:opacity-50"
               >
                 {applyingMaster ? 'Submitting...' : 'Submit Application'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Multiple Master Account Modal */}
-      {showMultipleMasterModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-2xl border border-gray-700 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center">
-                  <Users size={20} className="text-purple-500" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-white">Create Multiple Strategies</h2>
-                  <p className="text-gray-500 text-sm">Add up to {5 - myMasterProfiles.length} strategies at once</p>
-                </div>
-              </div>
-              <button onClick={() => setShowMultipleMasterModal(false)} className="text-gray-400 hover:text-white">
-                <X size={24} />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              {multipleMasterForms.map((form, index) => (
-                <div key={index} className="bg-dark-700 rounded-lg p-4 border border-gray-600">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-white font-medium">Strategy {index + 1}</h3>
-                    {multipleMasterForms.length > 1 && (
-                      <button 
-                        onClick={() => removeStrategyForm(index)}
-                        className="text-red-400 hover:text-red-300 text-sm"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-gray-400 text-xs mb-1 block">Display Name *</label>
-                      <input
-                        type="text"
-                        value={form.displayName}
-                        onChange={(e) => updateStrategyForm(index, 'displayName', e.target.value)}
-                        placeholder="Strategy name"
-                        className="w-full bg-dark-600 border border-gray-500 rounded-lg px-3 py-2 text-white text-sm"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="text-gray-400 text-xs mb-1 block">Trading Account *</label>
-                      <select
-                        value={form.tradingAccountId || (accounts.length > 0 ? accounts[0]._id : '')}
-                        onChange={(e) => updateStrategyForm(index, 'tradingAccountId', e.target.value)}
-                        className="w-full bg-dark-600 border border-gray-500 rounded-lg px-3 py-2 text-white text-sm"
-                      >
-                        {accounts.length === 0 && <option value="">No accounts</option>}
-                        {accounts.map(acc => (
-                          <option key={acc._id} value={acc._id}>{acc.accountId} - ${acc.balance?.toFixed(2)}</option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="text-gray-400 text-xs mb-1 block">Commission % (Max {commissionSettings.maxCommissionPercentage}%)</label>
-                      <input
-                        type="number"
-                        value={form.requestedCommissionPercentage}
-                        onChange={(e) => {
-                          const value = Math.min(Math.max(0, parseFloat(e.target.value) || 0), commissionSettings.maxCommissionPercentage)
-                          updateStrategyForm(index, 'requestedCommissionPercentage', value)
-                        }}
-                        min={commissionSettings.minCommissionPercentage}
-                        max={commissionSettings.maxCommissionPercentage}
-                        className="w-full bg-dark-600 border border-gray-500 rounded-lg px-3 py-2 text-white text-sm"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="text-gray-400 text-xs mb-1 block">Description</label>
-                      <input
-                        type="text"
-                        value={form.description}
-                        onChange={(e) => updateStrategyForm(index, 'description', e.target.value)}
-                        placeholder="Brief description"
-                        className="w-full bg-dark-600 border border-gray-500 rounded-lg px-3 py-2 text-white text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-              
-              {myMasterProfiles.length + multipleMasterForms.length < 5 && (
-                <button
-                  onClick={addStrategyForm}
-                  className="w-full py-2 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:text-white hover:border-gray-500 transition-colors text-sm"
-                >
-                  + Add Another Strategy
-                </button>
-              )}
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowMultipleMasterModal(false)
-                  setMultipleMasterForms([{ displayName: '', description: '', tradingAccountId: '', requestedCommissionPercentage: 10 }])
-                }}
-                className="flex-1 bg-dark-700 text-white py-2 rounded-lg hover:bg-dark-600"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleApplyMultipleMasters}
-                disabled={applyingMaster}
-                className="flex-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white py-2 rounded-lg font-medium hover:from-purple-400 hover:to-blue-400 disabled:opacity-50"
-              >
-                {applyingMaster ? 'Creating...' : `Create ${multipleMasterForms.length} ${multipleMasterForms.length === 1 ? 'Strategy' : 'Strategies'}`}
               </button>
             </div>
           </div>

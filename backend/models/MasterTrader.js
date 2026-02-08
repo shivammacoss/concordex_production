@@ -118,4 +118,11 @@ const masterTraderSchema = new mongoose.Schema({
 masterTraderSchema.index({ userId: 1, status: 1 })
 masterTraderSchema.index({ status: 1, visibility: 1 })
 
-export default mongoose.model('MasterTrader', masterTraderSchema)
+const MasterTrader = mongoose.model('MasterTrader', masterTraderSchema)
+
+// Auto-fix: Drop stale unique index on userId if it exists in production
+MasterTrader.collection.dropIndex('userId_1').catch(() => {
+  // Index doesn't exist or already dropped - safe to ignore
+})
+
+export default MasterTrader

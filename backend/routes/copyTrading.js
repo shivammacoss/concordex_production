@@ -540,9 +540,9 @@ router.put('/admin/approve/:id', async (req, res) => {
     }
 
     master.status = 'ACTIVE'
-    master.approvedCommissionPercentage = approvedCommissionPercentage || master.requestedCommissionPercentage
+    master.approvedCommissionPercentage = approvedCommissionPercentage !== undefined ? approvedCommissionPercentage : master.requestedCommissionPercentage
     master.visibility = visibility || 'PUBLIC'
-    master.adminSharePercentage = adminSharePercentage || 30
+    master.adminSharePercentage = adminSharePercentage !== undefined ? adminSharePercentage : 30
     master.approvedBy = adminId
     master.approvedAt = new Date()
     await master.save()

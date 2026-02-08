@@ -188,7 +188,7 @@ const AdminCopyTrade = () => {
     setSelectedMaster(master)
     setEditForm({
       approvedCommissionPercentage: master.approvedCommissionPercentage || master.requestedCommissionPercentage || 0,
-      adminSharePercentage: master.adminSharePercentage || 30,
+      adminSharePercentage: master.adminSharePercentage !== undefined && master.adminSharePercentage !== null ? master.adminSharePercentage : 30,
       visibility: master.visibility || 'PUBLIC',
       displayName: master.displayName || '',
       description: master.description || '',
