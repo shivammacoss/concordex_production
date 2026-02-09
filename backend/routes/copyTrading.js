@@ -202,15 +202,15 @@ router.post('/follow', async (req, res) => {
       return res.status(400).json({ message: 'Trading account is not active' })
     }
 
-    // Check if already following
-    const existingFollow = await CopyFollower.findOne({
+    // Check if already following (ACTIVE or PAUSED)
+    const existingActiveFollow = await CopyFollower.findOne({
       followerId: followerUserId,
       masterId,
       followerAccountId,
       status: { $in: ['ACTIVE', 'PAUSED'] }
     })
 
-    if (existingFollow) {
+    if (existingActiveFollow) {
       return res.status(400).json({ message: 'Already following this master with this account' })
     }
 
@@ -223,22 +223,53 @@ router.post('/follow', async (req, res) => {
       return res.status(400).json({ message: `Minimum copy value is ${settings.copyLimits.minCopyLotSize}` })
     }
 
-    // Create follower subscription
-    const follower = await CopyFollower.create({
+    // Check if there's a STOPPED subscription that can be reactivated
+    const stoppedFollow = await CopyFollower.findOne({
       followerId: followerUserId,
       masterId,
       followerAccountId,
-      copyMode,
-      copyValue,
-      maxLotSize: maxLotSize || 10,
-      maxDailyLoss: maxDailyLoss || null,
-      status: 'ACTIVE'
+      status: 'STOPPED'
     })
 
-    // Update master stats
-    master.stats.totalFollowers += 1
-    master.stats.activeFollowers += 1
-    await master.save()
+    let follower
+    if (stoppedFollow) {
+      // Reactivate the stopped subscription with new settings
+      stoppedFollow.status = 'ACTIVE'
+      stoppedFollow.copyMode = copyMode
+      stoppedFollow.copyValue = copyValue
+      stoppedFollow.maxLotSize = maxLotSize || 10
+      stoppedFollow.maxDailyLoss = maxDailyLoss || null
+      stoppedFollow.startedAt = new Date()
+      stoppedFollow.pausedAt = null
+      stoppedFollow.stoppedAt = null
+      // Reset daily stats
+      stoppedFollow.dailyProfit = 0
+      stoppedFollow.dailyLoss = 0
+      stoppedFollow.lastDailyReset = new Date()
+      await stoppedFollow.save()
+      follower = stoppedFollow
+
+      // Update master stats (only activeFollowers, not totalFollowers since they already followed before)
+      master.stats.activeFollowers += 1
+      await master.save()
+    } else {
+      // Create new follower subscription
+      follower = await CopyFollower.create({
+        followerId: followerUserId,
+        masterId,
+        followerAccountId,
+        copyMode,
+        copyValue,
+        maxLotSize: maxLotSize || 10,
+        maxDailyLoss: maxDailyLoss || null,
+        status: 'ACTIVE'
+      })
+
+      // Update master stats
+      master.stats.totalFollowers += 1
+      master.stats.activeFollowers += 1
+      await master.save()
+    }
 
     res.status(201).json({
       message: 'Successfully following master trader',
