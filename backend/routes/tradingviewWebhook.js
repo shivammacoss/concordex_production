@@ -323,8 +323,7 @@ router.post('/webhook', async (req, res) => {
               try {
                 await tradeEngine.closeTrade(masterTrade._id, closePrice, closePrice, 'ALGO')
                 console.log(`[Algo] Master trade ${masterTrade._id} closed successfully`)
-                await copyTradingEngine.closeFollowerTrades(masterTrade._id, closePrice)
-                console.log(`[Algo] Follower trades closed for master trade ${masterTrade._id}`)
+                // NOTE: Follower trades are automatically closed by tradeEngine.closeTrade() via closeFollowerTradesAsync()
                 totalClosed++
               } catch (tradeCloseErr) {
                 console.error(`[Algo] Error closing trade ${masterTrade._id}:`, tradeCloseErr.message)
@@ -379,7 +378,7 @@ router.post('/webhook', async (req, res) => {
             
             for (const masterTrade of openMasterTrades) {
               await tradeEngine.closeTrade(masterTrade._id, closePrice, closePrice, 'ALGO')
-              await copyTradingEngine.closeFollowerTrades(masterTrade._id, closePrice)
+              // NOTE: Follower trades are automatically closed by tradeEngine.closeTrade() via closeFollowerTradesAsync()
               totalClosed++
             }
           }
