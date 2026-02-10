@@ -929,10 +929,10 @@ const AdminTradingView = () => {
 
       {/* New Strategy Modal */}
       {showNewStrategy && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 overflow-y-auto py-8">
-          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-lg border border-gray-700 mx-4">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-white text-lg font-semibold">Create New Strategy</h3>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 overflow-y-auto py-4">
+          <div className="bg-dark-800 rounded-xl p-4 w-full max-w-md border border-gray-700 mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-white text-base font-semibold">Create New Strategy</h3>
               <button onClick={() => { setShowNewStrategy(false); setCreatedSecret(''); }} className="text-gray-400 hover:text-white">
                 <X size={20} />
               </button>
@@ -1029,38 +1029,38 @@ const AdminTradingView = () => {
                 </button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
-                  <label className="text-gray-400 text-sm block mb-2">Strategy Name</label>
+                  <label className="text-gray-400 text-xs block mb-1">Strategy Name</label>
                   <input
                     type="text"
                     value={newStrategy.name}
                     onChange={(e) => setNewStrategy(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full bg-dark-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                    className="w-full bg-dark-900 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm"
                     placeholder="e.g., XAUUSD Scalper"
                   />
                 </div>
 
                 <div>
-                  <label className="text-gray-400 text-sm block mb-2">Description</label>
+                  <label className="text-gray-400 text-xs block mb-1">Description</label>
                   <input
                     type="text"
                     value={newStrategy.description}
                     onChange={(e) => setNewStrategy(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full bg-dark-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                    className="w-full bg-dark-900 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm"
                     placeholder="Brief description..."
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-gray-400 text-sm block mb-2">Symbol</label>
+                    <label className="text-gray-400 text-xs block mb-1">Symbol</label>
                     <input
                       type="text"
                       list="symbol-suggestions"
                       value={newStrategy.symbol}
                       onChange={(e) => setNewStrategy(prev => ({ ...prev, symbol: e.target.value.toUpperCase() }))}
-                      className="w-full bg-dark-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                      className="w-full bg-dark-900 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm"
                       placeholder="Type or search symbol..."
                     />
                     <datalist id="symbol-suggestions">
@@ -1084,11 +1084,11 @@ const AdminTradingView = () => {
                   </div>
 
                   <div>
-                    <label className="text-gray-400 text-sm block mb-2">Timeframe</label>
+                    <label className="text-gray-400 text-xs block mb-1">Timeframe</label>
                     <select
                       value={newStrategy.timeframe}
                       onChange={(e) => setNewStrategy(prev => ({ ...prev, timeframe: e.target.value }))}
-                      className="w-full bg-dark-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                      className="w-full bg-dark-900 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm"
                     >
                       <option value="1m">1 Minute</option>
                       <option value="5m">5 Minutes</option>
@@ -1102,51 +1102,51 @@ const AdminTradingView = () => {
                 </div>
 
                 <div>
-                  <label className="text-gray-400 text-sm block mb-2">Default Quantity</label>
+                  <label className="text-gray-400 text-xs block mb-1">Default Quantity</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0.01"
                     value={newStrategy.defaultQuantity}
                     onChange={(e) => setNewStrategy(prev => ({ ...prev, defaultQuantity: parseFloat(e.target.value) || 0.01 }))}
-                    className="w-full bg-dark-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                    className="w-full bg-dark-900 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm"
                   />
                 </div>
 
                 {/* Stop Loss & Take Profit */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-gray-400 text-sm block mb-2">Stop Loss (SL)</label>
+                    <label className="text-gray-400 text-xs block mb-1">Stop Loss (SL)</label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
                       value={newStrategy.stopLoss}
                       onChange={(e) => setNewStrategy(prev => ({ ...prev, stopLoss: e.target.value }))}
-                      className="w-full bg-dark-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                      className="w-full bg-dark-900 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm"
                       placeholder="e.g., 2850.00"
                     />
-                    <p className="text-gray-600 text-xs mt-1">Triggers when position opens</p>
+                    <p className="text-gray-600 text-[10px] mt-0.5">Triggers when position opens</p>
                   </div>
                   <div>
-                    <label className="text-gray-400 text-sm block mb-2">Take Profit (TP)</label>
+                    <label className="text-gray-400 text-xs block mb-1">Take Profit (TP)</label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
                       value={newStrategy.takeProfit}
                       onChange={(e) => setNewStrategy(prev => ({ ...prev, takeProfit: e.target.value }))}
-                      className="w-full bg-dark-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                      className="w-full bg-dark-900 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm"
                       placeholder="e.g., 2920.00"
                     />
-                    <p className="text-gray-600 text-xs mt-1">Triggers when position opens</p>
+                    <p className="text-gray-600 text-[10px] mt-0.5">Triggers when position opens</p>
                   </div>
                 </div>
 
                 {/* Buy / Sell Entry & Exit */}
-                <div className="border-t border-gray-700 pt-4">
-                  <label className="text-gray-400 text-sm block mb-2">Trade Entry & Exit Prices</label>
-                  <div className="flex gap-2 mb-3">
+                <div className="border-t border-gray-700 pt-3">
+                  <label className="text-gray-400 text-xs block mb-1.5">Trade Entry & Exit Prices</label>
+                  <div className="flex gap-2 mb-2">
                     <button
                       type="button"
                       onClick={() => setFormTab('buy')}
@@ -1188,17 +1188,17 @@ const AdminTradingView = () => {
                   )}
                 </div>
 
-                <div className="border-t border-gray-700 pt-4">
-                  <label className="flex items-center gap-3 cursor-pointer">
+                <div className="border-t border-gray-700 pt-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={newStrategy.copyTradingEnabled}
                       onChange={(e) => setNewStrategy(prev => ({ ...prev, copyTradingEnabled: e.target.checked }))}
-                      className="w-5 h-5 rounded border-gray-600 bg-dark-900 text-yellow-500 focus:ring-yellow-500"
+                      className="w-4 h-4 rounded border-gray-600 bg-dark-900 text-yellow-500 focus:ring-yellow-500"
                     />
                     <div>
-                      <span className="text-white font-medium">Enable Copy Trading</span>
-                      <p className="text-gray-500 text-sm">When enabled, algo trades will be mirrored to all followers of the selected Trade Master</p>
+                      <span className="text-white font-medium text-sm">Enable Copy Trading</span>
+                      <p className="text-gray-500 text-xs">When enabled, algo trades will be mirrored to all followers of the selected Trade Master</p>
                     </div>
                   </label>
                 </div>
@@ -1244,14 +1244,14 @@ const AdminTradingView = () => {
                 <div className="flex gap-3 pt-2">
                   <button
                     onClick={() => { setShowNewStrategy(false); setCreatedSecret(''); }}
-                    className="flex-1 py-3 bg-dark-700 hover:bg-dark-600 text-white font-medium rounded-lg transition-colors"
+                    className="flex-1 py-2 bg-dark-700 hover:bg-dark-600 text-white font-medium text-sm rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleCreateStrategy}
                     disabled={!newStrategy.name || !newStrategy.symbol || (newStrategy.copyTradingEnabled && newStrategy.masterTraderIds.length === 0)}
-                    className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-black font-medium rounded-lg transition-colors"
+                    className="flex-1 py-2 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-black font-medium text-sm rounded-lg transition-colors"
                   >
                     Create
                   </button>
