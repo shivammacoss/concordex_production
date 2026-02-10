@@ -88,4 +88,9 @@ copyFollowerSchema.index({ followerId: 1, masterId: 1, followerAccountId: 1 }, {
 copyFollowerSchema.index({ masterId: 1, status: 1 })
 copyFollowerSchema.index({ followerId: 1, status: 1 })
 
-export default mongoose.model('CopyFollower', copyFollowerSchema)
+const CopyFollower = mongoose.model('CopyFollower', copyFollowerSchema)
+
+// Auto-drop stale index from old schema (masterId_1_userId_1) that causes E11000 errors
+CopyFollower.collection.dropIndex('masterId_1_userId_1').catch(() => {})
+
+export default CopyFollower
