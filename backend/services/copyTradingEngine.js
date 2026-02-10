@@ -427,6 +427,79 @@ class CopyTradingEngine {
           await follower.save()
         }
 
+        // Auto-calculate and deposit profit sharing commission on profitable trades
+        if (result.realizedPnl > 0) {
+          try {
+            const master = await MasterTrader.findById(copyTrade.masterId)
+            if (master && master.approvedCommissionPercentage) {
+              const commissionPercentage = master.approvedCommissionPercentage
+              const adminSharePercentage = master.adminSharePercentage !== undefined ? master.adminSharePercentage : 30
+
+              const totalCommission = result.realizedPnl * (commissionPercentage / 100)
+              const adminShare = totalCommission * (adminSharePercentage / 100)
+              const masterShare = totalCommission - adminShare
+
+              // Deduct commission from follower's account
+              const followerAccount = await TradingAccount.findById(copyTrade.followerAccountId)
+              if (followerAccount && followerAccount.balance >= totalCommission) {
+                followerAccount.balance -= totalCommission
+                await followerAccount.save()
+
+                // Deposit master share into master's trading account
+                const masterAccount = await TradingAccount.findById(master.tradingAccountId)
+                if (masterAccount) {
+                  masterAccount.balance += masterShare
+                  await masterAccount.save()
+                  console.log(`[Commission] Deposited $${masterShare.toFixed(2)} to master account ${master.tradingAccountId}`)
+                }
+
+                // Update master commission tracking
+                master.totalCommissionEarned += masterShare
+                await master.save()
+
+                // Deposit admin share to admin pool
+                const settings = await CopySettings.getSettings()
+                settings.adminCopyPool += adminShare
+                await settings.save()
+                console.log(`[Commission] Added $${adminShare.toFixed(2)} to admin pool`)
+
+                // Update follower commission stats
+                if (follower) {
+                  follower.stats.totalCommissionPaid += totalCommission
+                  await follower.save()
+                }
+
+                // Mark trade as commission applied
+                copyTrade.commissionApplied = true
+                await copyTrade.save()
+
+                // Create commission record
+                await CopyCommission.create({
+                  masterId: copyTrade.masterId,
+                  followerId: copyTrade.followerId,
+                  followerUserId: copyTrade.followerUserId,
+                  followerAccountId: copyTrade.followerAccountId,
+                  tradingDay: copyTrade.tradingDay,
+                  dailyProfit: result.realizedPnl,
+                  commissionPercentage,
+                  totalCommission,
+                  adminShare,
+                  masterShare,
+                  adminSharePercentage,
+                  status: 'DEDUCTED',
+                  deductedAt: new Date()
+                })
+
+                console.log(`[Commission] Trade ${copyTrade._id}: PnL=$${result.realizedPnl.toFixed(2)}, Commission=$${totalCommission.toFixed(2)} (Master: $${masterShare.toFixed(2)}, Admin: $${adminShare.toFixed(2)})`)
+              } else {
+                console.log(`[Commission] Follower account insufficient balance for commission on trade ${copyTrade._id}`)
+              }
+            }
+          } catch (commError) {
+            console.error(`[Commission] Error processing commission for trade ${copyTrade._id}:`, commError)
+          }
+        }
+
         console.log(`[CopyTrade] Closed follower trade ${copyTrade.followerTradeId}, PnL: ${result.realizedPnl}`)
         return {
           copyTradeId: copyTrade._id,

@@ -132,8 +132,8 @@ router.post('/webhook', async (req, res) => {
       quantity: parseFloat(quantity) || strategy?.defaultQuantity || 0.01,
       price: parseFloat(price) || 0,
       order_type: order_type?.toUpperCase() || 'MARKET',
-      take_profit: take_profit ? parseFloat(take_profit) : null,
-      stop_loss: stop_loss ? parseFloat(stop_loss) : null,
+      take_profit: take_profit ? parseFloat(take_profit) : (strategy?.takeProfit || null),
+      stop_loss: stop_loss ? parseFloat(stop_loss) : (strategy?.stopLoss || null),
       comment: comment || alert_message || '',
       close_all: close_all || false,
       status: 'RECEIVED',
@@ -400,6 +400,63 @@ router.post('/webhook', async (req, res) => {
       } else {
         signal.status = 'SIGNAL_ONLY'
         signal.message = 'Copy trading not enabled - close all signal logged only'
+      }
+    }
+    // MODIFY SL/TP
+    else if (actionUpper === 'MODIFY') {
+      if (strategy?.copyTradingEnabled && strategy?.masterTraderIds?.length > 0) {
+        try {
+          const newSl = signal.stop_loss
+          const newTp = signal.take_profit
+          let totalModified = 0
+
+          const masterTraderIds = strategy.masterTraderIds.map(m => m._id || m)
+          const masterTraders = await MasterTrader.find({ _id: { $in: masterTraderIds } }).lean()
+
+          for (const master of masterTraders) {
+            const accountId = master.tradingAccountId
+            if (!accountId) continue
+
+            const accountObjectId = typeof accountId === 'string'
+              ? new mongoose.Types.ObjectId(accountId)
+              : accountId
+
+            // Find open trades for this symbol from this master
+            const openMasterTrades = await Trade.find({
+              tradingAccountId: accountObjectId,
+              symbol: { $regex: new RegExp(`^${signal.symbol}$`, 'i') },
+              status: 'OPEN'
+            })
+
+            for (const masterTrade of openMasterTrades) {
+              try {
+                await tradeEngine.modifyTrade(masterTrade._id, newSl, newTp)
+                console.log(`[Algo] Modified SL/TP on master trade ${masterTrade._id}: SL=${newSl}, TP=${newTp}`)
+                totalModified++
+
+                // Mirror SL/TP to follower trades
+                await copyTradingEngine.mirrorSlTpModification(masterTrade._id, newSl, newTp)
+              } catch (modifyErr) {
+                console.error(`[Algo] Error modifying trade ${masterTrade._id}:`, modifyErr.message)
+              }
+            }
+          }
+
+          if (totalModified > 0) {
+            signal.status = 'MODIFIED'
+            signal.message = `Modified SL/TP on ${totalModified} position(s) and mirrored to followers`
+          } else {
+            signal.status = 'NO_POSITION'
+            signal.message = `No open positions found for ${signal.symbol} to modify`
+          }
+        } catch (modifyError) {
+          console.error('[Algo] Error modifying trades:', modifyError)
+          signal.status = 'ERROR'
+          signal.error = modifyError.message
+        }
+      } else {
+        signal.status = 'SIGNAL_ONLY'
+        signal.message = 'Copy trading not enabled - modify signal logged only'
       }
     }
     // ALERT ONLY

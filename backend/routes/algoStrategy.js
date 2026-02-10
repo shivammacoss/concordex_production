@@ -101,6 +101,8 @@ router.post('/', async (req, res) => {
       symbol,
       timeframe,
       defaultQuantity,
+      stopLoss,
+      takeProfit,
       copyTradingEnabled,
       masterTraderIds // Now accepts array of IDs
     } = req.body
@@ -146,6 +148,8 @@ router.post('/', async (req, res) => {
       symbol: symbol.toUpperCase(),
       timeframe: timeframe || '1H',
       defaultQuantity: defaultQuantity || 0.01,
+      stopLoss: stopLoss || null,
+      takeProfit: takeProfit || null,
       copyTradingEnabled: copyTradingEnabled || false,
       masterTraderIds: copyTradingEnabled ? validMasterIds : []
     })
@@ -178,6 +182,8 @@ router.put('/:id', async (req, res) => {
       symbol,
       timeframe,
       defaultQuantity,
+      stopLoss,
+      takeProfit,
       copyTradingEnabled,
       masterTraderIds,
       status
@@ -226,6 +232,8 @@ router.put('/:id', async (req, res) => {
       strategy.masterTraderIds = []
     }
     if (status) strategy.status = status
+    if (stopLoss !== undefined) strategy.stopLoss = stopLoss || null
+    if (takeProfit !== undefined) strategy.takeProfit = takeProfit || null
 
     await strategy.save()
 

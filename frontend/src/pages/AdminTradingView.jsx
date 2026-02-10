@@ -47,6 +47,8 @@ const AdminTradingView = () => {
     symbol: '',
     timeframe: '1H',
     defaultQuantity: 0.01,
+    stopLoss: '',
+    takeProfit: '',
     buyEntry: '',
     buyExit: '',
     sellEntry: '',
@@ -54,6 +56,10 @@ const AdminTradingView = () => {
     copyTradingEnabled: false,
     masterTraderIds: []
   })
+  const [showEditSLTP, setShowEditSLTP] = useState(null) // stores strategy object for editing SL/TP
+  const [editSLTP, setEditSLTP] = useState({ stopLoss: '', takeProfit: '' })
+  const [showEditPosition, setShowEditPosition] = useState(null) // stores position object for editing SL/TP
+  const [editPositionSLTP, setEditPositionSLTP] = useState({ stopLoss: '', takeProfit: '' })
 
   // Stats
   const [stats, setStats] = useState({
@@ -88,10 +94,13 @@ const AdminTradingView = () => {
           id: signal.id,
           symbol: signal.symbol,
           strategy: signal.strategy_name,
+          strategy_id: signal.strategy_id,
           side: signal.side,
           quantity: signal.quantity,
           entryPrice: signal.price,
           currentPrice: signal.price,
+          stopLoss: signal.stop_loss || null,
+          takeProfit: signal.take_profit || null,
           pnl: 0,
           openTime: signal.timestamp
         }, ...prev])
@@ -167,10 +176,13 @@ const AdminTradingView = () => {
               id: s.id,
               symbol: s.symbol,
               strategy: s.strategy_name,
+              strategy_id: s.strategy_id,
               side: s.side,
               quantity: s.quantity || 0.01,
               entryPrice: s.price || 0,
               currentPrice: s.price || 0,
+              stopLoss: s.stop_loss || null,
+              takeProfit: s.take_profit || null,
               pnl: 0,
               openTime: s.timestamp
             })
@@ -286,6 +298,8 @@ const AdminTradingView = () => {
           symbol: '',
           timeframe: '1H',
           defaultQuantity: 0.01,
+          stopLoss: '',
+          takeProfit: '',
           buyEntry: '',
           buyExit: '',
           sellEntry: '',
@@ -330,6 +344,72 @@ const AdminTradingView = () => {
       }
     } catch (error) {
       console.error('Error deleting strategy:', error)
+    }
+  }
+
+  const handleEditPositionSLTP = async () => {
+    if (!showEditPosition) return
+    try {
+      // Find the actual trade ID from the signal - we need to look up the trade by signal data
+      // The position's strategy_id links to the AlgoStrategy, and we need the Trade document
+      // Use the webhook to send a modify signal, or directly call the trade modify endpoint
+      const strategy = strategies.find(s => s.name === showEditPosition.strategy)
+      if (!strategy) {
+        alert('Strategy not found for this position')
+        return
+      }
+
+      // Send modify signal via webhook
+      const response = await fetch(`${API_URL}/tradingview/webhook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          secret: strategy.buyWebhookSecret || strategy.webhookSecret,
+          action: 'modify',
+          symbol: showEditPosition.symbol,
+          stop_loss: editPositionSLTP.stopLoss ? parseFloat(editPositionSLTP.stopLoss) : null,
+          take_profit: editPositionSLTP.takeProfit ? parseFloat(editPositionSLTP.takeProfit) : null
+        })
+      })
+      const data = await response.json()
+      if (data.success) {
+        // Update position in local state
+        setPositions(prev => prev.map(p => p.id === showEditPosition.id ? {
+          ...p,
+          stopLoss: editPositionSLTP.stopLoss ? parseFloat(editPositionSLTP.stopLoss) : null,
+          takeProfit: editPositionSLTP.takeProfit ? parseFloat(editPositionSLTP.takeProfit) : null
+        } : p))
+        setShowEditPosition(null)
+      } else {
+        alert(data.message || 'Failed to modify SL/TP')
+      }
+    } catch (error) {
+      console.error('Error modifying position SL/TP:', error)
+      alert('Error modifying SL/TP')
+    }
+  }
+
+  const handleUpdateSLTP = async () => {
+    if (!showEditSLTP) return
+    try {
+      const response = await fetch(`${API_URL}/algo-strategies/${showEditSLTP._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stopLoss: editSLTP.stopLoss ? parseFloat(editSLTP.stopLoss) : null,
+          takeProfit: editSLTP.takeProfit ? parseFloat(editSLTP.takeProfit) : null
+        })
+      })
+      const data = await response.json()
+      if (data.success) {
+        setStrategies(prev => prev.map(s => s._id === showEditSLTP._id ? data.strategy : s))
+        setShowEditSLTP(null)
+      } else {
+        alert(data.message || 'Failed to update SL/TP')
+      }
+    } catch (error) {
+      console.error('Error updating SL/TP:', error)
+      alert('Error updating SL/TP')
     }
   }
 
@@ -615,6 +695,7 @@ const AdminTradingView = () => {
                 <th className="text-left text-gray-400 text-xs font-medium px-4 py-3">STATUS</th>
                 <th className="text-left text-gray-400 text-xs font-medium px-4 py-3">COPY TRADING</th>
                 <th className="text-left text-gray-400 text-xs font-medium px-4 py-3">TRADES</th>
+                <th className="text-left text-gray-400 text-xs font-medium px-4 py-3">SL / TP</th>
                 <th className="text-left text-gray-400 text-xs font-medium px-4 py-3">P&L</th>
                 <th className="text-left text-gray-400 text-xs font-medium px-4 py-3">ACTIONS</th>
               </tr>
@@ -622,7 +703,7 @@ const AdminTradingView = () => {
             <tbody className="divide-y divide-gray-800">
               {strategies.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-8 text-gray-500">
+                  <td colSpan="8" className="text-center py-8 text-gray-500">
                     No strategies created yet. Click "New Strategy" to create one.
                   </td>
                 </tr>
@@ -669,6 +750,20 @@ const AdminTradingView = () => {
                       ${(strategy.stats?.totalPnl || 0).toFixed(2)}
                     </td>
                     <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <span className="text-red-400 text-xs">{strategy.stopLoss ? `SL: ${strategy.stopLoss}` : 'SL: --'}</span>
+                        <span className="text-gray-600 text-xs">/</span>
+                        <span className="text-green-400 text-xs">{strategy.takeProfit ? `TP: ${strategy.takeProfit}` : 'TP: --'}</span>
+                        <button
+                          onClick={() => { setShowEditSLTP(strategy); setEditSLTP({ stopLoss: strategy.stopLoss || '', takeProfit: strategy.takeProfit || '' }) }}
+                          className="ml-1 p-1 hover:bg-dark-600 rounded transition-colors"
+                          title="Edit SL/TP"
+                        >
+                          <Edit size={12} className="text-yellow-400" />
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <button 
                           onClick={() => setShowSecretModal(strategy)}
@@ -712,6 +807,7 @@ const AdminTradingView = () => {
                 <th className="text-left text-gray-400 text-xs font-medium px-4 py-3">QTY</th>
                 <th className="text-left text-gray-400 text-xs font-medium px-4 py-3">ENTRY</th>
                 <th className="text-left text-gray-400 text-xs font-medium px-4 py-3">CURRENT</th>
+                <th className="text-left text-gray-400 text-xs font-medium px-4 py-3">SL / TP</th>
                 <th className="text-left text-gray-400 text-xs font-medium px-4 py-3">P&L</th>
                 <th className="text-left text-gray-400 text-xs font-medium px-4 py-3">ACTIONS</th>
               </tr>
@@ -719,7 +815,7 @@ const AdminTradingView = () => {
             <tbody className="divide-y divide-gray-800">
               {positions.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="text-center py-8 text-gray-500">No open positions</td>
+                  <td colSpan="9" className="text-center py-8 text-gray-500">No open positions</td>
                 </tr>
               ) : (
                 positions.map((pos, idx) => (
@@ -736,6 +832,20 @@ const AdminTradingView = () => {
                     <td className="px-4 py-3 text-white">{pos.quantity}</td>
                     <td className="px-4 py-3 text-gray-400">${pos.entryPrice}</td>
                     <td className="px-4 py-3 text-white">${pos.currentPrice}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <span className="text-red-400 text-xs">{pos.stopLoss ? `SL: ${pos.stopLoss}` : 'SL: --'}</span>
+                        <span className="text-gray-600 text-xs">/</span>
+                        <span className="text-green-400 text-xs">{pos.takeProfit ? `TP: ${pos.takeProfit}` : 'TP: --'}</span>
+                        <button
+                          onClick={() => { setShowEditPosition(pos); setEditPositionSLTP({ stopLoss: pos.stopLoss || '', takeProfit: pos.takeProfit || '' }) }}
+                          className="ml-1 p-1 hover:bg-dark-600 rounded transition-colors"
+                          title="Edit SL/TP"
+                        >
+                          <Edit size={12} className="text-yellow-400" />
+                        </button>
+                      </div>
+                    </td>
                     <td className={`px-4 py-3 font-medium ${pos.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       ${pos.pnl.toFixed(2)}
                     </td>
@@ -1003,6 +1113,36 @@ const AdminTradingView = () => {
                   />
                 </div>
 
+                {/* Stop Loss & Take Profit */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-gray-400 text-sm block mb-2">Stop Loss (SL)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={newStrategy.stopLoss}
+                      onChange={(e) => setNewStrategy(prev => ({ ...prev, stopLoss: e.target.value }))}
+                      className="w-full bg-dark-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                      placeholder="e.g., 2850.00"
+                    />
+                    <p className="text-gray-600 text-xs mt-1">Triggers when position opens</p>
+                  </div>
+                  <div>
+                    <label className="text-gray-400 text-sm block mb-2">Take Profit (TP)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={newStrategy.takeProfit}
+                      onChange={(e) => setNewStrategy(prev => ({ ...prev, takeProfit: e.target.value }))}
+                      className="w-full bg-dark-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                      placeholder="e.g., 2920.00"
+                    />
+                    <p className="text-gray-600 text-xs mt-1">Triggers when position opens</p>
+                  </div>
+                </div>
+
                 {/* Buy / Sell Entry & Exit */}
                 <div className="border-t border-gray-700 pt-4">
                   <label className="text-gray-400 text-sm block mb-2">Trade Entry & Exit Prices</label>
@@ -1222,6 +1362,148 @@ const AdminTradingView = () => {
               >
                 Done
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit SL/TP Modal */}
+      {showEditSLTP && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Edit SL / TP</h3>
+              <button onClick={() => setShowEditSLTP(null)} className="text-gray-400 hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-dark-900 rounded-lg p-3 border border-gray-700">
+                <p className="text-gray-400 text-sm">Strategy: <span className="text-white font-medium">{showEditSLTP.name}</span></p>
+                <p className="text-gray-500 text-xs mt-1">Symbol: <span className="text-yellow-400">{showEditSLTP.symbol}</span></p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-gray-400 text-sm block mb-2">Stop Loss (SL)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editSLTP.stopLoss}
+                    onChange={(e) => setEditSLTP(prev => ({ ...prev, stopLoss: e.target.value }))}
+                    className="w-full bg-dark-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                    placeholder="e.g., 2850.00"
+                  />
+                  <p className="text-gray-600 text-xs mt-1">Applied when position opens</p>
+                </div>
+                <div>
+                  <label className="text-gray-400 text-sm block mb-2">Take Profit (TP)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editSLTP.takeProfit}
+                    onChange={(e) => setEditSLTP(prev => ({ ...prev, takeProfit: e.target.value }))}
+                    className="w-full bg-dark-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                    placeholder="e.g., 2920.00"
+                  />
+                  <p className="text-gray-600 text-xs mt-1">Applied when position opens</p>
+                </div>
+              </div>
+
+              <p className="text-gray-500 text-xs">Leave empty to remove SL/TP. Values will be applied automatically when a new position opens via TradingView webhook.</p>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowEditSLTP(null)}
+                  className="flex-1 py-3 bg-dark-700 hover:bg-dark-600 text-white font-medium rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateSLTP}
+                  className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-medium rounded-lg transition-colors"
+                >
+                  Save SL/TP
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Position SL/TP Modal */}
+      {showEditPosition && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Edit Position SL / TP</h3>
+              <button onClick={() => setShowEditPosition(null)} className="text-gray-400 hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-dark-900 rounded-lg p-3 border border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-yellow-400 font-medium">{showEditPosition.symbol}</p>
+                    <p className="text-gray-500 text-xs">{showEditPosition.strategy}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className={`px-2 py-1 rounded text-xs ${showEditPosition.side === 'BUY' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                      {showEditPosition.side}
+                    </span>
+                    <p className="text-gray-400 text-xs mt-1">Entry: ${showEditPosition.entryPrice}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-gray-400 text-sm block mb-2">Stop Loss (SL)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editPositionSLTP.stopLoss}
+                    onChange={(e) => setEditPositionSLTP(prev => ({ ...prev, stopLoss: e.target.value }))}
+                    className="w-full bg-dark-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                    placeholder="e.g., 2850.00"
+                  />
+                </div>
+                <div>
+                  <label className="text-gray-400 text-sm block mb-2">Take Profit (TP)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editPositionSLTP.takeProfit}
+                    onChange={(e) => setEditPositionSLTP(prev => ({ ...prev, takeProfit: e.target.value }))}
+                    className="w-full bg-dark-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
+                    placeholder="e.g., 2920.00"
+                  />
+                </div>
+              </div>
+
+              <p className="text-gray-500 text-xs">Updates SL/TP on the master trade and mirrors to all follower trades.</p>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowEditPosition(null)}
+                  className="flex-1 py-3 bg-dark-700 hover:bg-dark-600 text-white font-medium rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEditPositionSLTP}
+                  className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-medium rounded-lg transition-colors"
+                >
+                  Update SL/TP
+                </button>
+              </div>
             </div>
           </div>
         </div>

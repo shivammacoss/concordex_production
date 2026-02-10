@@ -30,6 +30,9 @@ const algoStrategySchema = new mongoose.Schema({
   buyExit: { type: Number, default: null },
   sellEntry: { type: Number, default: null },
   sellExit: { type: Number, default: null },
+  // Stop Loss & Take Profit (applied when position opens)
+  stopLoss: { type: Number, default: null },
+  takeProfit: { type: Number, default: null },
   // Webhook secrets for this strategy (auto-generated in pre-save hook)
   webhookSecret: {
     type: String,
