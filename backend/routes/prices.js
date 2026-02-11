@@ -71,6 +71,37 @@ async function getBinancePrice(symbol) {
   }
 }
 
+// GET /api/prices/instruments - Get all available trading instruments
+router.get('/instruments', (req, res) => {
+  const instruments = [
+    { symbol: 'EURUSD', name: 'EUR/USD', category: 'Forex' },
+    { symbol: 'GBPUSD', name: 'GBP/USD', category: 'Forex' },
+    { symbol: 'USDJPY', name: 'USD/JPY', category: 'Forex' },
+    { symbol: 'USDCHF', name: 'USD/CHF', category: 'Forex' },
+    { symbol: 'AUDUSD', name: 'AUD/USD', category: 'Forex' },
+    { symbol: 'NZDUSD', name: 'NZD/USD', category: 'Forex' },
+    { symbol: 'USDCAD', name: 'USD/CAD', category: 'Forex' },
+    { symbol: 'EURGBP', name: 'EUR/GBP', category: 'Forex' },
+    { symbol: 'EURJPY', name: 'EUR/JPY', category: 'Forex' },
+    { symbol: 'GBPJPY', name: 'GBP/JPY', category: 'Forex' },
+    { symbol: 'XAUUSD', name: 'Gold', category: 'Metals' },
+    { symbol: 'XAGUSD', name: 'Silver', category: 'Metals' },
+    { symbol: 'BTCUSD', name: 'Bitcoin', category: 'Crypto' },
+    { symbol: 'ETHUSD', name: 'Ethereum', category: 'Crypto' },
+    { symbol: 'BNBUSD', name: 'BNB', category: 'Crypto' },
+    { symbol: 'SOLUSD', name: 'Solana', category: 'Crypto' },
+    { symbol: 'XRPUSD', name: 'XRP', category: 'Crypto' },
+    { symbol: 'ADAUSD', name: 'Cardano', category: 'Crypto' },
+    { symbol: 'DOGEUSD', name: 'Dogecoin', category: 'Crypto' },
+    { symbol: 'DOTUSD', name: 'Polkadot', category: 'Crypto' },
+    { symbol: 'MATICUSD', name: 'Polygon', category: 'Crypto' },
+    { symbol: 'LTCUSD', name: 'Litecoin', category: 'Crypto' },
+    { symbol: 'AVAXUSD', name: 'Avalanche', category: 'Crypto' },
+    { symbol: 'LINKUSD', name: 'Chainlink', category: 'Crypto' },
+  ]
+  res.json({ success: true, instruments })
+})
+
 // GET /api/prices/:symbol - Get single symbol price
 router.get('/:symbol', async (req, res) => {
   try {
