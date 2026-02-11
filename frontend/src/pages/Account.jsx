@@ -623,8 +623,8 @@ const Account = () => {
       )}
 
       {/* Main Content - Scrollable */}
-      <main className={`flex-1 overflow-y-auto ${isMobile ? 'pt-14' : ''}`}>
-        <div className={`${isMobile ? 'p-4' : 'p-6'}`}>
+      <main className={`flex-1 min-h-0 overflow-y-auto ${isMobile ? 'pt-14' : ''}`}>
+        <div className={`${isMobile ? 'p-4 pb-8' : 'p-6 pb-8'}`}>
           {/* Success/Error Messages */}
           {success && (
             <div className={`mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg text-green-500 flex items-center gap-2 ${isMobile ? 'text-sm' : ''}`}>
@@ -940,19 +940,19 @@ const Account = () => {
                       <>
                         <button
                           onClick={() => { setSelectedAccount(account); setShowTransferModal(true); }}
-                          className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? 'py-2 text-xs' : 'py-3'} text-gray-400 hover:text-white hover:bg-dark-700 transition-colors border-l border-gray-800`}
+                          className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? 'py-2 text-xs' : 'py-3'} ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-dark-700 border-gray-800' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 border-gray-200'} transition-colors border-l`}
                         >
                           <Plus size={isMobile ? 12 : 16} /> Deposit
                         </button>
                         <button
                           onClick={() => { setSelectedAccount(account); setShowWithdrawModal(true); }}
-                          className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? 'py-2 text-xs' : 'py-3'} text-gray-400 hover:text-white hover:bg-dark-700 transition-colors border-l border-gray-800`}
+                          className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? 'py-2 text-xs' : 'py-3'} ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-dark-700 border-gray-800' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 border-gray-200'} transition-colors border-l`}
                         >
                           <Minus size={isMobile ? 12 : 16} /> Withdraw
                         </button>
                         <button
                           onClick={() => { setSelectedAccount(account); setShowAccountTransferModal(true); }}
-                          className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? 'py-2 text-xs' : 'py-3'} text-blue-400 hover:text-blue-300 hover:bg-dark-700 transition-colors border-l border-gray-800`}
+                          className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? 'py-2 text-xs' : 'py-3'} text-blue-400 hover:text-blue-300 ${isDarkMode ? 'hover:bg-dark-700 border-gray-800' : 'hover:bg-gray-100 border-gray-200'} transition-colors border-l`}
                         >
                           <Copy size={isMobile ? 12 : 16} /> Transfer
                         </button>
@@ -1300,10 +1300,10 @@ const Account = () => {
 
       {/* Withdraw from Account Modal (Account Wallet → Main Wallet) */}
       {showWithdrawModal && selectedAccount && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className={`${isDarkMode ? 'bg-dark-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl p-6 w-full max-w-md border`}>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-white font-semibold text-lg">Withdraw to Main Wallet</h3>
+              <h3 className={`font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Withdraw to Main Wallet</h3>
               <button 
                 onClick={() => {
                   setShowWithdrawModal(false)
@@ -1317,19 +1317,19 @@ const Account = () => {
               </button>
             </div>
 
-            <div className="p-3 bg-dark-700 rounded-lg mb-4">
+            <div className={`p-3 ${isDarkMode ? 'bg-dark-700' : 'bg-gray-100'} rounded-lg mb-4`}>
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-8 h-8 bg-blue-500/20 rounded flex items-center justify-center">
                   <TrendingUp size={16} className="text-blue-500" />
                 </div>
                 <div>
-                  <p className="text-white font-medium">{selectedAccount.accountId}</p>
+                  <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedAccount.accountId}</p>
                   <p className="text-gray-500 text-xs">{selectedAccount.accountTypeId?.name}</p>
                 </div>
               </div>
-              <div className="flex justify-between text-sm mt-3 pt-3 border-t border-gray-600">
+              <div className={`flex justify-between text-sm mt-3 pt-3 border-t ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
                 <span className="text-gray-400">Available Balance:</span>
-                <span className="text-white font-medium">{formatBalance(selectedAccount.balance, selectedAccount.accountTypeId)}</span>
+                <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatBalance(selectedAccount.balance, selectedAccount.accountTypeId)}</span>
               </div>
             </div>
 
@@ -1346,7 +1346,7 @@ const Account = () => {
                   }
                 }}
                 placeholder="Enter amount (e.g., 100.50)"
-                className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-accent-green"
+                className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg px-4 py-3 placeholder-gray-500 focus:outline-none focus:border-accent-green`}
               />
               <div className="flex justify-between mt-2">
                 <button 
@@ -1368,7 +1368,7 @@ const Account = () => {
                   setTransferAmount('')
                   setError('')
                 }}
-                className="flex-1 bg-dark-700 text-white py-3 rounded-lg hover:bg-dark-600 transition-colors"
+                className={`flex-1 ${isDarkMode ? 'bg-dark-700 text-white hover:bg-dark-600' : 'bg-gray-200 text-gray-900 hover:bg-gray-300'} py-3 rounded-lg transition-colors`}
               >
                 Cancel
               </button>
