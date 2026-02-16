@@ -3,47 +3,20 @@ import User from '../models/User.js'
 import Trade from '../models/Trade.js'
 import corecenSocketClient from '../services/corecenSocketClient.js'
 import lpIntegration from '../services/lpIntegration.js'
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import dotenv from 'dotenv'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+dotenv.config()
 
 const router = express.Router()
 
-// Helper to read/write LP settings to a JSON file (or could use DB)
-const LP_SETTINGS_FILE = path.join(__dirname, '../config/lp-settings.json')
-
-const getLpSettingsFromFile = () => {
-  try {
-    if (fs.existsSync(LP_SETTINGS_FILE)) {
-      const data = fs.readFileSync(LP_SETTINGS_FILE, 'utf8')
-      return JSON.parse(data)
-    }
-  } catch (error) {
-    console.error('Error reading LP settings file:', error)
-  }
-  // Return defaults from env
+// Get LP settings from environment variables
+const getLpSettings = () => {
   return {
     lpApiKey: process.env.LP_API_KEY || '',
     lpApiSecret: process.env.LP_API_SECRET || '',
     lpApiUrl: process.env.LP_API_URL || 'http://localhost:3001',
-    corecenWsUrl: process.env.CORECEN_WS_URL || 'http://localhost:3001'
-  }
-}
-
-const saveLpSettingsToFile = (settings) => {
-  try {
-    const configDir = path.dirname(LP_SETTINGS_FILE)
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true })
-    }
-    fs.writeFileSync(LP_SETTINGS_FILE, JSON.stringify(settings, null, 2))
-    return true
-  } catch (error) {
-    console.error('Error saving LP settings file:', error)
-    return false
+    corecenWsUrl: process.env.CORECEN_WS_URL || process.env.LP_API_URL || 'http://localhost:3001',
+    enabled: process.env.LP_ENABLED === 'true'
   }
 }
 
@@ -282,7 +255,7 @@ router.get('/user/:id/book-type', async (req, res) => {
 // GET /api/book/lp-status - Check LP connection status
 router.get('/lp-status', async (req, res) => {
   try {
-    const settings = getLpSettingsFromFile()
+    const settings = getLpSettings()
     
     if (!settings.lpApiUrl) {
       return res.json({
@@ -340,7 +313,7 @@ router.get('/lp-status', async (req, res) => {
 // GET /api/book/lp-settings - Get LP connection settings
 router.get('/lp-settings', async (req, res) => {
   try {
-    const settings = getLpSettingsFromFile()
+    const settings = getLpSettings()
     
     // Mask the secret for security (only show last 8 chars)
     const maskedSettings = {
@@ -361,45 +334,41 @@ router.get('/lp-settings', async (req, res) => {
   }
 })
 
-// PUT /api/book/lp-settings - Save LP connection settings
+// PUT /api/book/lp-settings - Update LP connection settings (runtime only)
+// NOTE: For permanent changes, update .env file and restart the server
 router.put('/lp-settings', async (req, res) => {
   try {
     const { lpApiKey, lpApiSecret, lpApiUrl, corecenWsUrl } = req.body
     
-    const settings = {
-      lpApiKey: lpApiKey || '',
-      lpApiSecret: lpApiSecret || '',
-      lpApiUrl: lpApiUrl || 'http://localhost:3001',
-      corecenWsUrl: corecenWsUrl || 'http://localhost:3001',
-      wsUrl: corecenWsUrl || 'http://localhost:3001'
-    }
+    // Update the LP integration service with new settings (runtime only)
+    lpIntegration.updateConfig({
+      apiUrl: lpApiUrl || process.env.LP_API_URL || 'http://localhost:3001',
+      apiKey: lpApiKey || process.env.LP_API_KEY || '',
+      apiSecret: lpApiSecret || process.env.LP_API_SECRET || ''
+    })
     
-    const saved = saveLpSettingsToFile(settings)
+    // Reconnect WebSocket with new settings
+    corecenSocketClient.reconnect()
     
-    if (saved) {
-      // Update the LP integration service with new settings
-      lpIntegration.updateConfig({
-        apiUrl: settings.lpApiUrl,
-        apiKey: settings.lpApiKey,
-        apiSecret: settings.lpApiSecret
-      })
-      
-      // Reconnect WebSocket with new settings
-      corecenSocketClient.reconnect()
-      
-      console.log('[Book Management] LP settings updated and WebSocket reconnected')
-      
-      res.json({
-        success: true,
-        message: 'LP settings saved successfully'
-      })
-    } else {
-      res.status(500).json({ success: false, message: 'Failed to save LP settings' })
-    }
+    console.log('[Book Management] LP settings updated (runtime) and WebSocket reconnected')
+    console.log('[Book Management] NOTE: For permanent changes, update .env file')
+    
+    res.json({
+      success: true,
+      message: 'LP settings updated (runtime only). For permanent changes, update .env file and restart server.'
+    })
   } catch (error) {
-    console.error('Error saving LP settings:', error)
-    res.status(500).json({ success: false, message: 'Error saving LP settings', error: error.message })
+    console.error('Error updating LP settings:', error)
+    res.status(500).json({ success: false, message: 'Error updating LP settings', error: error.message })
   }
+})
+
+// Legacy endpoint - kept for backwards compatibility but does nothing now
+router.put('/lp-settings-legacy', async (req, res) => {
+  res.json({
+    success: false,
+    message: 'This endpoint is deprecated. LP settings are now configured via .env file.'
+  })
 })
 
 // POST /api/book/test-lp-connection - Test LP connection

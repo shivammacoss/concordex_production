@@ -5,7 +5,7 @@ import concorddexLogo from '../assets/concorddex.png'
 
 const AdminLogin = () => {
   const navigate = useNavigate()
-  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001'
+  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000'
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)

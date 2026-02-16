@@ -13,43 +13,13 @@
 
 import { io } from 'socket.io-client'
 import dotenv from 'dotenv'
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
 
 // Ensure env vars are loaded
 dotenv.config()
 
-// Get directory path for ES modules
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-// LP Settings file path
-const LP_SETTINGS_FILE = path.join(__dirname, '..', 'config', 'lp-settings.json')
-
-// Function to get LP settings from file
-const getLpSettings = () => {
-  try {
-    if (fs.existsSync(LP_SETTINGS_FILE)) {
-      const data = fs.readFileSync(LP_SETTINGS_FILE, 'utf8')
-      return JSON.parse(data)
-    }
-  } catch (error) {
-    console.warn('[CorecenSocket] Could not read LP settings file:', error.message)
-  }
-  return null
-}
-
-// Get WebSocket URL from LP settings or fallback to env/default
+// Get WebSocket URL from environment variables
 const getCorecenWsUrl = () => {
-  const lpSettings = getLpSettings()
-  if (lpSettings?.corecenWsUrl) {
-    return lpSettings.corecenWsUrl
-  }
-  if (lpSettings?.wsUrl) {
-    return lpSettings.wsUrl
-  }
-  return process.env.CORECEN_WS_URL || 'http://localhost:3001'
+  return process.env.CORECEN_WS_URL || process.env.LP_API_URL || 'http://localhost:3001'
 }
 
 const PLATFORM_KEY = process.env.CORECEN_PLATFORM_KEY || 'concordex_secure_platform_key_2024'

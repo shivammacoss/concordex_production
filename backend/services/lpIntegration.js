@@ -15,47 +15,22 @@
 
 import crypto from 'crypto'
 import dotenv from 'dotenv'
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
 
 // Load .env file explicitly to ensure env vars are available
 dotenv.config()
 
-// Get directory path for ES modules
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-// LP Settings file path
-const LP_SETTINGS_FILE = path.join(__dirname, '..', 'config', 'lp-settings.json')
-
-// Function to get LP settings from file
-const getLpSettingsFromFile = () => {
-  try {
-    if (fs.existsSync(LP_SETTINGS_FILE)) {
-      const data = fs.readFileSync(LP_SETTINGS_FILE, 'utf8')
-      return JSON.parse(data)
-    }
-  } catch (error) {
-    console.warn('[LPIntegration] Could not read LP settings file:', error.message)
-  }
-  return null
-}
-
-// Load settings from file first, then fallback to env vars
-const fileSettings = getLpSettingsFromFile()
-
-// LP API Configuration (mutable for dynamic updates)
-let LP_API_URL = fileSettings?.lpApiUrl || process.env.LP_API_URL || 'http://localhost:3001'
-let LP_API_KEY = fileSettings?.lpApiKey || process.env.LP_API_KEY || ''
-let LP_API_SECRET = fileSettings?.lpApiSecret || process.env.LP_API_SECRET || ''
+// LP API Configuration from environment variables (mutable for dynamic updates)
+let LP_API_URL = process.env.LP_API_URL || 'http://localhost:3001'
+let LP_API_KEY = process.env.LP_API_KEY || ''
+let LP_API_SECRET = process.env.LP_API_SECRET || ''
+let CORECEN_WS_URL = process.env.CORECEN_WS_URL || process.env.LP_API_URL || 'http://localhost:3001'
+let LP_ENABLED = process.env.LP_ENABLED === 'true'
 
 // Log configuration status on module load
 if (LP_API_KEY && LP_API_SECRET) {
-  const source = fileSettings?.lpApiKey ? 'settings file' : '.env'
-  console.log(`[LPIntegration] ✓ Configured from ${source} - URL: ${LP_API_URL}, API Key: ${LP_API_KEY.substring(0, 10)}...`)
+  console.log(`[LPIntegration] ✓ Configured from .env - URL: ${LP_API_URL}, API Key: ${LP_API_KEY.substring(0, 10)}...`)
 } else {
-  console.warn(`[LPIntegration] ✗ NOT CONFIGURED - Configure LP settings in Book Management or .env`)
+  console.warn(`[LPIntegration] ✗ NOT CONFIGURED - Set LP_API_URL, LP_API_KEY, LP_API_SECRET in .env`)
 }
 
 /**
