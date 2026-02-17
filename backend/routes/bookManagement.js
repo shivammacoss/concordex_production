@@ -399,16 +399,20 @@ router.post('/test-lp-connection', async (req, res) => {
       // Also test authenticated endpoint if credentials provided
       if (lpApiKey && lpApiSecret) {
         try {
-          // Create HMAC signature for test
+          // Create HMAC signature matching Corecen's expected format
           const crypto = await import('crypto')
           const timestamp = Date.now().toString()
-          const payload = JSON.stringify({ test: true })
-          const signatureData = `${timestamp}.${payload}`
+          const method = 'GET'
+          const path = '/api/v1/broker/trades/stats'
+          const body = '' // Empty for GET requests
+          
+          // Corecen expects: timestamp + method + path + body
+          const signatureData = timestamp + method + path + body
           const signature = crypto.createHmac('sha256', lpApiSecret)
             .update(signatureData)
             .digest('hex')
           
-          const authTestUrl = `${lpApiUrl}/api/broker-api/health`
+          const authTestUrl = `${lpApiUrl}${path}`
           const authResponse = await fetch(authTestUrl, {
             method: 'GET',
             headers: {
@@ -427,11 +431,12 @@ router.post('/test-lp-connection', async (req, res) => {
               lpStatus: data
             })
           } else {
+            const authData = await authResponse.json().catch(() => ({}))
             res.json({
               success: true,
-              message: 'LP is reachable but authentication may need verification. Check your API key and secret.',
+              message: `LP is reachable but authentication failed: ${authData.error?.message || 'Check your API key and secret.'}`,
               lpStatus: data,
-              authStatus: 'unverified'
+              authStatus: 'failed'
             })
           }
         } catch (authError) {
