@@ -381,7 +381,7 @@ router.post('/test-lp-connection', async (req, res) => {
     }
     
     // Test the connection by making a health check request to the LP
-    const healthUrl = `${lpApiUrl}/api/health`
+    const healthUrl = `${lpApiUrl}/health`
     
     console.log(`[Book Management] Testing LP connection to ${healthUrl}`)
     
