@@ -403,7 +403,7 @@ router.post('/test-lp-connection', async (req, res) => {
           const crypto = await import('crypto')
           const timestamp = Date.now().toString()
           const method = 'GET'
-          const path = '/api/v1/broker/trades/stats'
+          const path = '/api/v1/broker-api/trades/stats'
           const body = '' // Empty for GET requests
           
           // Corecen expects: timestamp + method + path + body

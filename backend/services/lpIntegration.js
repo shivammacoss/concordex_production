@@ -122,7 +122,7 @@ export const pushTrade = async (trade, user) => {
   }
 
   console.log(`[LPIntegration] Pushing A-Book trade: ${trade.tradeId}`)
-  const result = await makeRequest('POST', '/api/v1/broker/trades/push', payload)
+  const result = await makeRequest('POST', '/api/v1/broker-api/trades/push', payload)
 
   if (result.success) {
     console.log(`[LPIntegration] Trade pushed successfully: ${trade.tradeId}`)
@@ -149,7 +149,7 @@ export const closeTrade = async (trade) => {
   }
 
   console.log(`[LPIntegration] Closing A-Book trade: ${trade.tradeId}`)
-  const result = await makeRequest('POST', '/api/v1/broker/trades/close', payload)
+  const result = await makeRequest('POST', '/api/v1/broker-api/trades/close', payload)
 
   if (result.success) {
     console.log(`[LPIntegration] Trade closed in LP: ${trade.tradeId}`)
@@ -175,7 +175,7 @@ export const updateTrade = async (trade) => {
   }
 
   console.log(`[LPIntegration] Updating A-Book trade: ${trade.tradeId}`)
-  const result = await makeRequest('POST', '/api/v1/broker/trades/update', payload)
+  const result = await makeRequest('POST', '/api/v1/broker-api/trades/update', payload)
 
   if (result.success) {
     console.log(`[LPIntegration] Trade updated in LP: ${trade.tradeId}`)
@@ -197,7 +197,7 @@ export const testConnection = async () => {
   }
 
   try {
-    const result = await makeRequest('GET', '/api/v1/broker/trades/stats')
+    const result = await makeRequest('GET', '/api/v1/broker-api/trades/stats')
     return result.success === true
   } catch (error) {
     console.error(`[LPIntegration] Connection test failed: ${error.message}`)
