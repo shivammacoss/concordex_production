@@ -478,4 +478,88 @@ router.post('/test-lp-connection', async (req, res) => {
   }
 })
 
+// POST /api/book/sync-abook-trades - Sync all existing A-Book trades to Corecen LP
+router.post('/sync-abook-trades', async (req, res) => {
+  try {
+    // Get all A-Book users
+    const aBookUsers = await User.find({ bookType: 'A' }).select('_id email firstName lastName')
+    
+    if (aBookUsers.length === 0) {
+      return res.json({ success: true, message: 'No A-Book users found', synced: 0 })
+    }
+    
+    const userIds = aBookUsers.map(u => u._id)
+    const userMap = {}
+    aBookUsers.forEach(u => { userMap[u._id.toString()] = u })
+    
+    // Get all open trades for A-Book users that haven't been synced
+    const trades = await Trade.find({
+      userId: { $in: userIds },
+      status: 'OPEN',
+      $or: [
+        { lpSyncStatus: { $exists: false } },
+        { lpSyncStatus: 'PENDING' },
+        { lpSyncStatus: 'FAILED' },
+        { lpSyncStatus: 'NOT_APPLICABLE' }
+      ]
+    })
+    
+    if (trades.length === 0) {
+      return res.json({ success: true, message: 'No trades to sync', synced: 0 })
+    }
+    
+    console.log(`[Book Management] Syncing ${trades.length} A-Book trades to LP...`)
+    
+    let synced = 0
+    let failed = 0
+    const errors = []
+    
+    for (const trade of trades) {
+      try {
+        const user = userMap[trade.userId.toString()]
+        
+        // Update trade book type
+        trade.bookType = 'A'
+        trade.lpSyncStatus = 'PENDING'
+        await trade.save()
+        
+        // Push to LP via REST API
+        if (lpIntegration.isConfigured()) {
+          const result = await lpIntegration.pushTrade(trade, user)
+          if (result.success) {
+            trade.lpSyncStatus = 'SYNCED'
+            trade.lpSyncedAt = new Date()
+            await trade.save()
+            synced++
+            console.log(`[Book Management] Trade ${trade.tradeId} synced to LP`)
+          } else {
+            trade.lpSyncStatus = 'FAILED'
+            await trade.save()
+            failed++
+            errors.push({ tradeId: trade.tradeId, error: result.error })
+          }
+        } else {
+          errors.push({ tradeId: trade.tradeId, error: 'LP not configured' })
+          failed++
+        }
+      } catch (tradeError) {
+        failed++
+        errors.push({ tradeId: trade.tradeId, error: tradeError.message })
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Synced ${synced} trades, ${failed} failed`,
+      synced,
+      failed,
+      total: trades.length,
+      errors: errors.length > 0 ? errors : undefined
+    })
+  } catch (error) {
+    console.error('[Book Management] Error syncing A-Book trades:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
 export default router
