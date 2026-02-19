@@ -266,7 +266,9 @@ router.get('/lp-status', async (req, res) => {
     }
     
     // Try to connect to LP health endpoint
-    const healthUrl = `${settings.lpApiUrl}/api/health`
+    // Remove /api suffix if present, then add /health
+    const baseUrl = settings.lpApiUrl.replace(/\/api\/?$/, '')
+    const healthUrl = `${baseUrl}/health`
     
     try {
       const response = await fetch(healthUrl, {
