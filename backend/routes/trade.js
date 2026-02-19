@@ -12,6 +12,7 @@ const router = express.Router()
 
 // POST /api/trade/open - Open a new trade
 router.post('/open', async (req, res) => {
+  console.log(`[TradeRoute] POST /api/trade/open received:`, JSON.stringify(req.body))
   try {
     const { 
       userId, 
