@@ -480,22 +480,33 @@ class CopyTradingEngine {
                 copyTrade.commissionApplied = true
                 await copyTrade.save()
 
-                // Create commission record
-                await CopyCommission.create({
-                  masterId: copyTrade.masterId,
-                  followerId: copyTrade.followerId,
-                  followerUserId: copyTrade.followerUserId,
-                  followerAccountId: copyTrade.followerAccountId,
-                  tradingDay: copyTrade.tradingDay,
-                  dailyProfit: result.realizedPnl,
-                  commissionPercentage,
-                  totalCommission,
-                  adminShare,
-                  masterShare,
-                  adminSharePercentage,
-                  status: 'DEDUCTED',
-                  deductedAt: new Date()
-                })
+                // Create or update commission record (accumulate for same day)
+                await CopyCommission.findOneAndUpdate(
+                  {
+                    masterId: copyTrade.masterId,
+                    followerId: copyTrade.followerId,
+                    tradingDay: copyTrade.tradingDay
+                  },
+                  {
+                    $inc: {
+                      dailyProfit: result.realizedPnl,
+                      totalCommission,
+                      adminShare,
+                      masterShare
+                    },
+                    $setOnInsert: {
+                      followerUserId: copyTrade.followerUserId,
+                      followerAccountId: copyTrade.followerAccountId,
+                      commissionPercentage,
+                      adminSharePercentage
+                    },
+                    $set: {
+                      status: 'DEDUCTED',
+                      deductedAt: new Date()
+                    }
+                  },
+                  { upsert: true, new: true }
+                )
 
                 console.log(`[Commission] Trade ${copyTrade._id}: PnL=$${result.realizedPnl.toFixed(2)}, Commission=$${totalCommission.toFixed(2)} (Master: $${masterShare.toFixed(2)}, Admin: $${adminShare.toFixed(2)})`)
               } else {
@@ -591,22 +602,33 @@ class CopyTradingEngine {
           followerAccount.balance -= totalCommission
           await followerAccount.save()
 
-          // Create commission record
-          const commission = await CopyCommission.create({
-            masterId: group.masterId,
-            followerId: group.followerId,
-            followerUserId: group.followerUserId,
-            followerAccountId: group.followerAccountId,
-            tradingDay: day,
-            dailyProfit: group.totalPnl,
-            commissionPercentage,
-            totalCommission,
-            adminShare,
-            masterShare,
-            adminSharePercentage,
-            status: 'DEDUCTED',
-            deductedAt: new Date()
-          })
+          // Create or update commission record (accumulate for same day)
+          const commission = await CopyCommission.findOneAndUpdate(
+            {
+              masterId: group.masterId,
+              followerId: group.followerId,
+              tradingDay: day
+            },
+            {
+              $inc: {
+                dailyProfit: group.totalPnl,
+                totalCommission,
+                adminShare,
+                masterShare
+              },
+              $setOnInsert: {
+                followerUserId: group.followerUserId,
+                followerAccountId: group.followerAccountId,
+                commissionPercentage,
+                adminSharePercentage
+              },
+              $set: {
+                status: 'DEDUCTED',
+                deductedAt: new Date()
+              }
+            },
+            { upsert: true, new: true }
+          )
 
           // Update master pending commission
           master.pendingCommission += masterShare
@@ -640,22 +662,33 @@ class CopyTradingEngine {
           })
 
         } else {
-          // Insufficient balance for commission
-          await CopyCommission.create({
-            masterId: group.masterId,
-            followerId: group.followerId,
-            followerUserId: group.followerUserId,
-            followerAccountId: group.followerAccountId,
-            tradingDay: day,
-            dailyProfit: group.totalPnl,
-            commissionPercentage,
-            totalCommission,
-            adminShare,
-            masterShare,
-            adminSharePercentage,
-            status: 'FAILED',
-            deductionError: 'Insufficient balance'
-          })
+          // Insufficient balance for commission - update or create failed record
+          await CopyCommission.findOneAndUpdate(
+            {
+              masterId: group.masterId,
+              followerId: group.followerId,
+              tradingDay: day
+            },
+            {
+              $inc: {
+                dailyProfit: group.totalPnl,
+                totalCommission,
+                adminShare,
+                masterShare
+              },
+              $setOnInsert: {
+                followerUserId: group.followerUserId,
+                followerAccountId: group.followerAccountId,
+                commissionPercentage,
+                adminSharePercentage
+              },
+              $set: {
+                status: 'FAILED',
+                deductionError: 'Insufficient balance'
+              }
+            },
+            { upsert: true, new: true }
+          )
 
           commissionResults.push({
             masterId: group.masterId,
