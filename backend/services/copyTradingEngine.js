@@ -295,10 +295,6 @@ class CopyTradingEngine {
         follower.stats.activeCopiedTrades += 1
         await follower.save()
 
-        // Update master stats
-        master.stats.totalCopiedVolume += followerLotSize
-        await master.save()
-
         console.log(`[CopyTrade] SUCCESS: Copied trade to follower ${follower._id}, lot size: ${followerLotSize}`)
         
         return {
@@ -323,6 +319,17 @@ class CopyTradingEngine {
     
     const successCount = copyResults.filter(r => r.status === 'SUCCESS').length
     console.log(`[CopyTrade] Completed: ${successCount}/${followers.length} followers copied successfully`)
+    
+    // Update master stats AFTER all parallel operations complete (to avoid ParallelSaveError)
+    const totalCopiedVolume = copyResults
+      .filter(r => r.status === 'SUCCESS')
+      .reduce((sum, r) => sum + (r.lotSize || 0), 0)
+    
+    if (totalCopiedVolume > 0) {
+      master.stats.totalCopiedVolume += totalCopiedVolume
+      await master.save()
+      console.log(`[CopyTrade] Updated master stats: totalCopiedVolume += ${totalCopiedVolume}`)
+    }
     
     return copyResults
   }
