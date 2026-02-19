@@ -99,8 +99,10 @@ export const formatTradeForLP = (trade, user) => {
  * @returns {Promise<Object>} Updated trade with routing info
  */
 export const routeNewTrade = async (trade, io = null) => {
+  console.log(`[TradeRouter] routeNewTrade called for trade ${trade.tradeId}, userId: ${trade.userId}`)
   try {
     const bookType = await getBookTypeForUser(trade.userId)
+    console.log(`[TradeRouter] User ${trade.userId} bookType: ${bookType}`)
     
     // Update trade with book type
     trade.bookType = bookType
