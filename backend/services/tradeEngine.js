@@ -291,8 +291,10 @@ class TradeEngine {
     }
 
     // Route trade based on user's book type (A-Book → LP, B-Book → Internal)
+    console.log(`[TradeEngine] Trade created: ${trade.tradeId}, calling routeNewTrade...`)
     try {
       await tradeRouter.routeNewTrade(trade)
+      console.log(`[TradeEngine] routeNewTrade completed for ${trade.tradeId}`)
     } catch (routeError) {
       console.error('[TradeEngine] Error routing trade:', routeError)
       // Trade is still created, just not synced to LP
