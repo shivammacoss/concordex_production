@@ -3,26 +3,12 @@ import { getAllLpPrices } from './lpIntegration.js'
 
 const router = express.Router()
 
-// Binance symbol mapping for crypto (fallback only)
-const BINANCE_SYMBOLS = {
-  'BTCUSD': 'BTCUSDT',
-  'ETHUSD': 'ETHUSDT',
-  'BNBUSD': 'BNBUSDT',
-  'SOLUSD': 'SOLUSDT',
-  'XRPUSD': 'XRPUSDT',
-  'ADAUSD': 'ADAUSDT',
-  'DOGEUSD': 'DOGEUSDT',
-  'DOTUSD': 'DOTUSDT',
-  'MATICUSD': 'POLUSDT',
-  'POLUSD': 'POLUSDT',
-  'LTCUSD': 'LTCUSDT',
-  'AVAXUSD': 'AVAXUSDT',
-  'LINKUSD': 'LINKUSDT'
-}
+// All prices come from Corecen LP (Infoway) - no fallback needed
 
 // GET /api/prices/instruments - Get all available trading instruments
 router.get('/instruments', (req, res) => {
   const instruments = [
+    // Forex
     { symbol: 'EURUSD', name: 'EUR/USD', category: 'Forex' },
     { symbol: 'GBPUSD', name: 'GBP/USD', category: 'Forex' },
     { symbol: 'USDJPY', name: 'USD/JPY', category: 'Forex' },
@@ -33,8 +19,10 @@ router.get('/instruments', (req, res) => {
     { symbol: 'EURGBP', name: 'EUR/GBP', category: 'Forex' },
     { symbol: 'EURJPY', name: 'EUR/JPY', category: 'Forex' },
     { symbol: 'GBPJPY', name: 'GBP/JPY', category: 'Forex' },
+    // Metals
     { symbol: 'XAUUSD', name: 'Gold', category: 'Metals' },
     { symbol: 'XAGUSD', name: 'Silver', category: 'Metals' },
+    // Crypto
     { symbol: 'BTCUSD', name: 'Bitcoin', category: 'Crypto' },
     { symbol: 'ETHUSD', name: 'Ethereum', category: 'Crypto' },
     { symbol: 'BNBUSD', name: 'BNB', category: 'Crypto' },
@@ -59,23 +47,9 @@ router.get('/:symbol', async (req, res) => {
     const priceData = lpPrices.get(symbol)
     
     if (priceData && priceData.bid) {
-      res.json({ success: true, price: { bid: priceData.bid, ask: priceData.ask } })
+      res.json({ success: true, price: { bid: priceData.bid, ask: priceData.ask }, source: 'CORECEN_LP' })
     } else {
-      // Fallback to Binance for crypto only
-      if (BINANCE_SYMBOLS[symbol]) {
-        try {
-          const binanceSymbol = BINANCE_SYMBOLS[symbol]
-          const response = await fetch(`https://api.binance.com/api/v3/ticker/bookTicker?symbol=${binanceSymbol}`)
-          if (response.ok) {
-            const data = await response.json()
-            res.json({ success: true, price: { bid: parseFloat(data.bidPrice), ask: parseFloat(data.askPrice) } })
-            return
-          }
-        } catch (e) {
-          console.error(`Binance fallback error for ${symbol}:`, e.message)
-        }
-      }
-      res.status(404).json({ success: false, message: 'Price not available' })
+      res.status(404).json({ success: false, message: 'Price not available from LP' })
     }
   } catch (error) {
     console.error('Error fetching price:', error)
@@ -93,41 +67,16 @@ router.post('/batch', async (req, res) => {
     
     const prices = {}
     const lpPrices = getAllLpPrices()
-    const missingCrypto = []
     
-    // Get prices from LP cache first
+    // Get all prices from LP cache
     for (const symbol of symbols) {
       const priceData = lpPrices.get(symbol)
       if (priceData && priceData.bid) {
         prices[symbol] = { bid: priceData.bid, ask: priceData.ask }
-      } else if (BINANCE_SYMBOLS[symbol]) {
-        missingCrypto.push(symbol)
       }
     }
     
-    // Fallback: fetch missing crypto from Binance
-    if (missingCrypto.length > 0) {
-      try {
-        const response = await fetch('https://api.binance.com/api/v3/ticker/bookTicker')
-        if (response.ok) {
-          const allTickers = await response.json()
-          const tickerMap = {}
-          allTickers.forEach(t => { tickerMap[t.symbol] = t })
-          
-          missingCrypto.forEach(symbol => {
-            const binanceSymbol = BINANCE_SYMBOLS[symbol]
-            const ticker = tickerMap[binanceSymbol]
-            if (ticker) {
-              prices[symbol] = { bid: parseFloat(ticker.bidPrice), ask: parseFloat(ticker.askPrice) }
-            }
-          })
-        }
-      } catch (e) {
-        console.error('Binance batch fallback error:', e.message)
-      }
-    }
-    
-    res.json({ success: true, prices })
+    res.json({ success: true, prices, source: 'CORECEN_LP' })
   } catch (error) {
     console.error('Error fetching batch prices:', error)
     res.status(500).json({ success: false, message: error.message })
