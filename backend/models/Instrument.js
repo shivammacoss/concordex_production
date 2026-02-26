@@ -55,6 +55,42 @@ const instrumentSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  // LP Integration fields
+  assetClass: {
+    type: String,
+    enum: ['FX', 'CFD', 'CRYPTO', 'COMMODITY', 'INDEX', 'STOCK'],
+    default: 'CFD'
+  },
+  bookType: {
+    type: String,
+    enum: ['A_BOOK', 'B_BOOK'],
+    default: 'B_BOOK'
+  },
+  markupBps: {
+    type: Number,
+    default: 0
+  },
+  commissionPerLot: {
+    type: Number,
+    default: 7
+  },
+  marginPercent: {
+    type: Number,
+    default: 1
+  },
+  precision: {
+    type: Number,
+    default: 5
+  },
+  enabled: {
+    type: Boolean,
+    default: true
+  },
+  source: {
+    type: String,
+    enum: ['MANUAL', 'CORECEN_LP', 'INFOWAY'],
+    default: 'MANUAL'
   }
 }, { timestamps: true })
 

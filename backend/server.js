@@ -31,6 +31,7 @@ import bookManagementRoutes from './routes/bookManagement.js'
 import tradingviewWebhookRoutes from './routes/tradingviewWebhook.js'
 import algoStrategyRoutes from './routes/algoStrategy.js'
 import externalApiRoutes from './routes/externalApi.js'
+import lpIntegrationRoutes from './routes/lpIntegration.js'
 import corecenSocketClient from './services/corecenSocketClient.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -246,6 +247,10 @@ app.use('/api/admin-mgmt', adminManagementRoutes)
 app.use('/api/upload', uploadRoutes)
 app.use('/api/email-templates', emailTemplatesRoutes)
 app.use('/api/book', bookManagementRoutes)
+app.use('/api/lp', lpIntegrationRoutes)
+
+// Make io globally accessible for LP price updates
+global.io = io
 app.use('/api/tradingview', tradingviewWebhookRoutes)
 app.use('/api/algo-strategies', algoStrategyRoutes)
 app.use('/api/external', externalApiRoutes)
