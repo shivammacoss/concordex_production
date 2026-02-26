@@ -31,7 +31,7 @@ import bookManagementRoutes from './routes/bookManagement.js'
 import tradingviewWebhookRoutes from './routes/tradingviewWebhook.js'
 import algoStrategyRoutes from './routes/algoStrategy.js'
 import externalApiRoutes from './routes/externalApi.js'
-import lpIntegrationRoutes from './routes/lpIntegration.js'
+import lpIntegrationRoutes, { getAllLpPrices } from './routes/lpIntegration.js'
 import corecenSocketClient from './services/corecenSocketClient.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -55,41 +55,48 @@ const io = new Server(httpServer, {
 const connectedClients = new Map()
 const priceSubscribers = new Set()
 
-// Price cache for real-time streaming
-const priceCache = new Map()
+// Price cache - now populated by Corecen LP via /api/lp/prices endpoints
+// Fallback to direct Binance for crypto if LP prices not available
 const BINANCE_SYMBOLS = {
   'BTCUSD': 'BTCUSDT', 'ETHUSD': 'ETHUSDT', 'BNBUSD': 'BNBUSDT',
   'SOLUSD': 'SOLUSDT', 'XRPUSD': 'XRPUSDT', 'ADAUSD': 'ADAUSDT',
+  'MATICUSD': 'POLUSDT', 'POLUSD': 'POLUSDT',
   'DOGEUSD': 'DOGEUSDT', 'DOTUSD': 'DOTUSDT', 'LTCUSD': 'LTCUSDT'
 }
-// Priority order - XAUUSD first as it's most traded
-const METAAPI_SYMBOLS = ['XAUUSD', 'EURUSD', 'GBPUSD', 'XAGUSD', 'USDJPY', 'USDCHF', 'AUDUSD', 'NZDUSD', 'USDCAD', 'EURGBP', 'EURJPY', 'GBPJPY']
-const META_API_TOKEN = process.env.META_API_TOKEN
-const META_API_ACCOUNT_ID = process.env.META_API_ACCOUNT_ID
 
-// Fetch MetaAPI price
-async function fetchMetaApiPrice(symbol) {
-  try {
-    const response = await fetch(
-      `https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/${META_API_ACCOUNT_ID}/symbols/${symbol}/current-price`,
-      { headers: { 'auth-token': META_API_TOKEN, 'Content-Type': 'application/json' } }
-    )
-    if (!response.ok) return null
-    const data = await response.json()
-    return data.bid ? { bid: data.bid, ask: data.ask || data.bid, time: Date.now() } : null
-  } catch (e) { return null }
-}
-
-// Background price streaming - runs every 500ms for Binance, every 3s for MetaAPI
-let lastMetaApiRefresh = 0
-let metaApiIndex = 0
+// Background price streaming - now uses LP prices from Corecen
+// Only fetches from Binance as fallback if LP prices are not available
 async function streamPrices() {
   if (priceSubscribers.size === 0) return
   
   const now = Date.now()
-  const updatedPrices = {}
+  const lpPrices = getAllLpPrices()
   
-  // Binance - fast refresh (every call)
+  // If we have LP prices from Corecen, use them
+  if (lpPrices.size > 0) {
+    const prices = {}
+    const updated = {}
+    for (const [symbol, data] of lpPrices) {
+      prices[symbol] = { bid: data.bid, ask: data.ask, time: data.time || now }
+      // Mark as updated if recent (within last 2 seconds)
+      if (data.time && (now - data.time) < 2000) {
+        updated[symbol] = prices[symbol]
+      }
+    }
+    
+    io.to('prices').emit('priceStream', {
+      prices,
+      updated,
+      timestamp: now,
+      source: 'CORECEN_LP'
+    })
+    return
+  }
+  
+  // Fallback: fetch from Binance directly for crypto only
+  const updatedPrices = {}
+  const priceCache = new Map()
+  
   try {
     const response = await fetch('https://api.binance.com/api/v3/ticker/bookTicker')
     if (response.ok) {
@@ -106,57 +113,74 @@ async function streamPrices() {
         }
       })
     }
-  } catch (e) {}
-  
-  // MetaAPI - fetch 3 symbols every 3 seconds (rate limit friendly)
-  if (now - lastMetaApiRefresh > 3000) {
-    lastMetaApiRefresh = now
-    
-    // Always fetch XAUUSD (index 0) plus 2 rotating symbols
-    const symbolsToFetch = ['XAUUSD']
-    const otherSymbols = METAAPI_SYMBOLS.slice(1) // All except XAUUSD
-    symbolsToFetch.push(otherSymbols[metaApiIndex % otherSymbols.length])
-    symbolsToFetch.push(otherSymbols[(metaApiIndex + 1) % otherSymbols.length])
-    metaApiIndex = (metaApiIndex + 2) % otherSymbols.length
-    
-    // Fetch in parallel for speed
-    const results = await Promise.allSettled(
-      symbolsToFetch.map(symbol => fetchMetaApiPrice(symbol))
-    )
-    
-    results.forEach((result, i) => {
-      if (result.status === 'fulfilled' && result.value) {
-        priceCache.set(symbolsToFetch[i], result.value)
-        updatedPrices[symbolsToFetch[i]] = result.value
-      }
-    })
+  } catch (e) {
+    console.error('Binance fallback error:', e.message)
   }
   
-  // Always broadcast full cache so clients have all prices
-  io.to('prices').emit('priceStream', {
-    prices: Object.fromEntries(priceCache),
-    updated: updatedPrices,
-    timestamp: now
-  })
+  if (priceCache.size > 0) {
+    io.to('prices').emit('priceStream', {
+      prices: Object.fromEntries(priceCache),
+      updated: updatedPrices,
+      timestamp: now,
+      source: 'BINANCE_FALLBACK'
+    })
+  }
 }
 
-// Start price streaming interval
+// Start price streaming interval (broadcasts LP prices or fallback)
 setInterval(streamPrices, 500)
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id)
 
   // Subscribe to real-time price stream
-  socket.on('subscribePrices', () => {
+  socket.on('subscribePrices', async () => {
     socket.join('prices')
     priceSubscribers.add(socket.id)
-    // Send current prices immediately
+    
+    const now = Date.now()
+    const lpPrices = getAllLpPrices()
+    
+    // If LP prices available from Corecen, use them
+    if (lpPrices.size > 0) {
+      const prices = {}
+      for (const [symbol, data] of lpPrices) {
+        prices[symbol] = { bid: data.bid, ask: data.ask, time: data.time || now }
+      }
+      socket.emit('priceStream', {
+        prices,
+        updated: {},
+        timestamp: now,
+        source: 'CORECEN_LP'
+      })
+      console.log(`Socket ${socket.id} subscribed to price stream (LP), cache size: ${lpPrices.size}`)
+      return
+    }
+    
+    // Fallback: fetch from Binance for crypto
+    const priceCache = new Map()
+    try {
+      const response = await fetch('https://api.binance.com/api/v3/ticker/bookTicker')
+      if (response.ok) {
+        const tickers = await response.json()
+        const tickerMap = {}
+        tickers.forEach(t => { tickerMap[t.symbol] = t })
+        Object.keys(BINANCE_SYMBOLS).forEach(symbol => {
+          const ticker = tickerMap[BINANCE_SYMBOLS[symbol]]
+          if (ticker) {
+            priceCache.set(symbol, { bid: parseFloat(ticker.bidPrice), ask: parseFloat(ticker.askPrice), time: now })
+          }
+        })
+      }
+    } catch (e) { console.error('Initial Binance fetch error:', e.message) }
+    
     socket.emit('priceStream', {
       prices: Object.fromEntries(priceCache),
       updated: {},
-      timestamp: Date.now()
+      timestamp: now,
+      source: 'BINANCE_FALLBACK'
     })
-    console.log(`Socket ${socket.id} subscribed to price stream`)
+    console.log(`Socket ${socket.id} subscribed to price stream (fallback), cache size: ${priceCache.size}`)
   })
 
   // Unsubscribe from price stream
