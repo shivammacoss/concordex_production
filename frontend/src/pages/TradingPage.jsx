@@ -1373,14 +1373,6 @@ const TradingPage = () => {
                 )}
               </div>
               
-              {/* Footer */}
-              <div className="px-3 py-2 border-t border-gray-800 flex items-center justify-between shrink-0">
-                <span className="text-gray-500 text-xs">{filteredInstruments.length} instruments</span>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-green-500 text-xs">Live</span>
-                </div>
-              </div>
             </div>
           )}
 
