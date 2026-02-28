@@ -148,14 +148,28 @@ export const closeTrade = async (trade) => {
     closed_at: trade.closedAt?.toISOString() || new Date().toISOString(),
   }
 
-  console.log(`[LPIntegration] Closing A-Book trade: ${trade.tradeId}`)
+  console.log(`[LPIntegration] ========== CLOSE TRADE REQUEST ==========`)
+  console.log(`[LPIntegration] Trade ID: ${trade.tradeId}`)
+  console.log(`[LPIntegration] External Trade ID: ${payload.external_trade_id}`)
+  console.log(`[LPIntegration] Close Price: ${payload.close_price}`)
+  console.log(`[LPIntegration] PnL: ${payload.pnl}`)
+  console.log(`[LPIntegration] Closed By: ${payload.closed_by}`)
+  console.log(`[LPIntegration] LP API URL: ${LP_API_URL}`)
+  console.log(`[LPIntegration] LP API Key configured: ${!!LP_API_KEY}`)
+  console.log(`[LPIntegration] LP API Secret configured: ${!!LP_API_SECRET}`)
+  console.log(`[LPIntegration] Timestamp: ${new Date().toISOString()}`)
+  
   const result = await makeRequest('POST', '/api/v1/broker-api/trades/close', payload)
 
   if (result.success) {
-    console.log(`[LPIntegration] Trade closed in LP: ${trade.tradeId}`)
+    console.log(`[LPIntegration] ✓ Trade closed in LP: ${trade.tradeId}`)
+    console.log(`[LPIntegration] LP Response:`, JSON.stringify(result, null, 2))
   } else {
-    console.error(`[LPIntegration] Failed to close trade in LP: ${result.error}`)
+    console.error(`[LPIntegration] ✗ Failed to close trade in LP: ${trade.tradeId}`)
+    console.error(`[LPIntegration] Error: ${result.error || result.message || 'Unknown error'}`)
+    console.error(`[LPIntegration] Full response:`, JSON.stringify(result, null, 2))
   }
+  console.log(`[LPIntegration] ==========================================`)
 
   return result
 }
