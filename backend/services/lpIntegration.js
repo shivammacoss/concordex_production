@@ -117,6 +117,7 @@ export const pushTrade = async (trade, user) => {
     margin: trade.marginUsed || 0,
     leverage: trade.leverage || 100,
     commission: trade.commission || 0,
+    contract_size: trade.contractSize || 100000, // CRITICAL: Send actual contract size
     trading_account_id: trade.tradingAccountId?.toString() || '',
     opened_at: trade.openedAt?.toISOString() || new Date().toISOString(),
   }
@@ -146,6 +147,7 @@ export const closeTrade = async (trade) => {
     pnl: trade.realizedPnl || 0,
     closed_by: trade.closedBy || 'USER',
     closed_at: trade.closedAt?.toISOString() || new Date().toISOString(),
+    contract_size: trade.contractSize || 100000, // CRITICAL: Send actual contract size for P/L verification
   }
 
   console.log(`[LPIntegration] ========== CLOSE TRADE REQUEST ==========`)
@@ -186,6 +188,7 @@ export const updateTrade = async (trade) => {
     sl: trade.stopLoss || 0,
     tp: trade.takeProfit || 0,
     pnl: trade.floatingPnl || 0,
+    contract_size: trade.contractSize || 100000, // CRITICAL: Send actual contract size for P/L consistency
   }
 
   console.log(`[LPIntegration] Updating A-Book trade: ${trade.tradeId}`)
@@ -260,6 +263,80 @@ export const updateConfig = (config) => {
   }
   
   console.log(`[LPIntegration] Configuration updated - URL: ${LP_API_URL}, API Key: ${LP_API_KEY ? LP_API_KEY.substring(0, 10) + '...' : 'not set'}`)
+}
+
+/**
+ * Remove A-Book user and close all their trades in LP
+ * Called when admin deletes a user or transfers from A-Book to B-Book
+ * @param {Object} user - User document
+ * @returns {Promise<Object>} Result with success status
+ */
+export const removeABookUser = async (user) => {
+  const payload = {
+    external_user_id: user._id.toString(),
+    user_email: user.email || '',
+    source_platform: 'CONCORDEX',
+    timestamp: new Date().toISOString(),
+  }
+
+  console.log(`[LPIntegration] Removing A-Book user: ${user.email}`)
+  const result = await makeRequest('POST', '/api/v1/broker-api/users/remove', payload)
+
+  if (result.success) {
+    console.log(`[LPIntegration] User removed from LP: ${user.email}`)
+  } else {
+    console.error(`[LPIntegration] Failed to remove user from LP: ${result.error}`)
+  }
+
+  return result
+}
+
+/**
+ * Close all open A-Book trades for a user in LP
+ * Called before deleting user or trades locally
+ * @param {string} userId - User ID
+ * @returns {Promise<Object>} Result with success status
+ */
+export const closeAllUserTrades = async (userId) => {
+  try {
+    // Find all open A-Book trades for this user
+    const Trade = (await import('../models/Trade.js')).default
+    const openTrades = await Trade.find({ 
+      userId, 
+      status: 'OPEN', 
+      bookType: 'A' 
+    })
+
+    console.log(`[LPIntegration] Found ${openTrades.length} open A-Book trades for user ${userId}`)
+
+    const results = []
+    for (const trade of openTrades) {
+      // Close trade at current market price (we'll use 0 for now, LP will handle)
+      trade.status = 'CLOSED'
+      trade.closedBy = 'ADMIN'
+      trade.closedAt = new Date()
+      trade.realizedPnl = 0 // LP will calculate actual P/L
+      
+      const result = await closeTrade(trade)
+      results.push({ tradeId: trade.tradeId, result })
+      
+      // Update local trade status
+      await trade.save()
+    }
+
+    const successCount = results.filter(r => r.result.success).length
+    console.log(`[LPIntegration] Closed ${successCount}/${openTrades.length} trades in LP`)
+
+    return { 
+      success: true, 
+      total: openTrades.length, 
+      closed: successCount,
+      results 
+    }
+  } catch (error) {
+    console.error(`[LPIntegration] Error closing user trades: ${error.message}`)
+    return { success: false, error: error.message }
+  }
 }
 
 export default {

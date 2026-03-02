@@ -19,47 +19,85 @@ import IBCommission from '../models/IBCommission.js'
 import IBReferral from '../models/IBReferral.js'
 import UserCryptoWallet from '../models/UserCryptoWallet.js'
 import UserBankAccount from '../models/UserBankAccount.js'
+import TradingAccount from '../models/TradingAccount.js'
+import User from '../models/User.js'
+import Notification from '../models/Notification.js'
+import AdminLog from '../models/AdminLog.js'
+import lpIntegration from '../services/lpIntegration.js'
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/concorddex_trading'
 
-async function resetDashboardStats() {
+mongoose.connect(MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+
+const resetDashboardStats = async () => {
+  const session = await mongoose.startSession()
+  session.startTransaction()
+  
   try {
-    console.log('Connecting to MongoDB...')
-    await mongoose.connect(MONGODB_URI)
-    console.log('Connected to MongoDB')
+    console.log('Starting dashboard stats reset...')
 
-    const [transactionCount, tradeCount, walletCount, masterCount, followerCount, copyTradeCount, commissionCount, ticketCount, strategyCount, signalCount, ibUserCount, ibWalletCount, ibCommissionCount, ibReferralCount, cryptoWalletCount, bankAccountCount] = await Promise.all([
-      Transaction.countDocuments(),
-      Trade.countDocuments(),
-      Wallet.countDocuments(),
-      MasterTrader.countDocuments(),
-      CopyFollower.countDocuments(),
-      CopyTrade.countDocuments(),
-      CopyCommission.countDocuments(),
-      SupportTicket.countDocuments(),
-      AlgoStrategy.countDocuments(),
-      TradingViewSignal.countDocuments(),
-      IBUser.countDocuments(),
-      IBWallet.countDocuments(),
-      IBCommission.countDocuments(),
-      IBReferral.countDocuments(),
-      UserCryptoWallet.countDocuments(),
-      UserBankAccount.countDocuments()
-    ])
+    // Step 1: Close all open A-Book trades in LP before local deletion
+    console.log('Step 1: Closing A-Book trades in LP...')
+    const openABookTrades = await Trade.find({ status: 'OPEN', bookType: 'A' }).session(session)
+    
+    if (openABookTrades.length > 0 && lpIntegration.isConfigured()) {
+      console.log(`Found ${openABookTrades.length} open A-Book trades to close in LP`)
+      
+      // Group trades by user for batch processing
+      const tradesByUser = {}
+      for (const trade of openABookTrades) {
+        const userId = trade.userId.toString()
+        if (!tradesByUser[userId]) {
+          tradesByUser[userId] = []
+        }
+        tradesByUser[userId].push(trade)
+      }
+      
+      // Close trades user by user
+      for (const [userId, trades] of Object.entries(tradesByUser)) {
+        console.log(`Closing ${trades.length} trades for user ${userId} in LP`)
+        const closeResult = await lpIntegration.closeAllUserTrades(userId)
+        
+        if (!closeResult.success) {
+          console.error(`Failed to close trades for user ${userId}: ${closeResult.error}`)
+          // Continue with other users even if one fails
+        } else {
+          console.log(`Closed ${closeResult.closed}/${closeResult.total} trades for user ${userId}`)
+        }
+      }
+    } else {
+      console.log('No open A-Book trades found or LP not configured')
+    }
 
-    console.log(`\nCurrent counts:`)
-    console.log(`  Transactions: ${transactionCount}`)
-    console.log(`  Trades: ${tradeCount}`)
-    console.log(`  Wallets: ${walletCount}`)
-    console.log(`  Master Traders: ${masterCount}`)
-    console.log(`  Copy Followers: ${followerCount}`)
-    console.log(`  Copy Trades: ${copyTradeCount}`)
-    console.log(`  Copy Commissions: ${commissionCount}`)
-    console.log(`  Support Tickets: ${ticketCount}`)
-    console.log(`  Algo Strategies: ${strategyCount}`)
-    console.log(`  TradingView Signals: ${signalCount}`)
-    console.log(`  IB Users: ${ibUserCount}`)
-    console.log(`  IB Wallets: ${ibWalletCount}`)
+    // Step 2: Remove all A-Book users from LP
+    console.log('Step 2: Removing A-Book users from LP...')
+    const aBookUsers = await User.aggregate([
+      { $lookup: { from: 'trades', localField: '_id', foreignField: 'userId', as: 'userTrades' } },
+      { $match: { 'userTrades.bookType': 'A' } },
+      { $group: { _id: '$_id', user: { $first: '$$ROOT' } } }
+    ]).session(session)
+    
+    if (aBookUsers.length > 0 && lpIntegration.isConfigured()) {
+      console.log(`Found ${aBookUsers.length} A-Book users to remove from LP`)
+      
+      for (const { user } of aBookUsers) {
+        try {
+          const removeResult = await lpIntegration.removeABookUser(user)
+          if (!removeResult.success) {
+            console.error(`Failed to remove user ${user.email} from LP: ${removeResult.error}`)
+          } else {
+            console.log(`Removed user ${user.email} from LP`)
+          }
+        } catch (error) {
+          console.error(`Error removing user ${user.email} from LP: ${error.message}`)
+        }
+      }
+    } else {
+      console.log('No A-Book users found or LP not configured')
+    }
     console.log(`  IB Commissions: ${ibCommissionCount}`)
     console.log(`  IB Referrals: ${ibReferralCount}`)
     console.log(`  User Crypto Wallet Requests: ${cryptoWalletCount}`)

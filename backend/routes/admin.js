@@ -295,20 +295,78 @@ router.put('/users/:id/ban', async (req, res) => {
   }
 })
 
-// DELETE /api/admin/users/:id - Delete user
+// DELETE /api/admin/users/:id - Delete user with LP sync
 router.delete('/users/:id', async (req, res) => {
+  const session = await mongoose.startSession()
+  session.startTransaction()
+  
   try {
-    const user = await User.findByIdAndDelete(req.params.id)
+    const user = await User.findById(req.params.id).session(session)
     if (!user) {
+      await session.abortTransaction()
       return res.status(404).json({ message: 'User not found' })
     }
-    res.json({ message: 'User deleted successfully' })
+
+    console.log(`[Admin] Deleting user ${user.email} (${user._id})`)
+
+    // Import required services
+    const { default: lpIntegration } = await import('../services/lpIntegration.js')
+    const { default: corecenSocketClient } = await import('../services/corecenSocketClient.js')
+    const Trade = (await import('../models/Trade.js')).default
+
+    // Step 1: Close all open A-Book trades in LP before local deletion
+    if (lpIntegration.isConfigured()) {
+      console.log(`[Admin] Closing A-Book trades in LP for user ${user.email}`)
+      const closeResult = await lpIntegration.closeAllUserTrades(user._id.toString())
+      
+      if (!closeResult.success) {
+        console.error(`[Admin] Failed to close trades in LP: ${closeResult.error}`)
+        // Continue with deletion even if LP close fails
+      } else {
+        console.log(`[Admin] Closed ${closeResult.closed}/${closeResult.total} trades in LP`)
+      }
+    }
+
+    // Step 2: Notify Corecen to remove A-Book user
+    try {
+      console.log(`[Admin] Notifying Corecen to remove user ${user.email}`)
+      const removeResult = await lpIntegration.removeABookUser(user)
+      
+      if (!removeResult.success) {
+        console.error(`[Admin] Failed to remove user from LP: ${removeResult.error}`)
+        // Continue with deletion even if LP removal fails
+      }
+      
+      // Also emit WebSocket event for real-time sync
+      corecenSocketClient.emitUserRemoved(user)
+    } catch (error) {
+      console.error(`[Admin] Error notifying Corecen: ${error.message}`)
+      // Continue with deletion even if Corecen notification fails
+    }
+
+    // Step 3: Delete all trades locally (both A-Book and B-Book)
+    console.log(`[Admin] Deleting all trades locally for user ${user.email}`)
+    const deletedTrades = await Trade.deleteMany({ userId: user._id }).session(session)
+    console.log(`[Admin] Deleted ${deletedTrades.deletedCount} trades locally`)
+
+    // Step 4: Delete user locally
+    await User.findByIdAndDelete(req.params.id).session(session)
+
+    await session.commitTransaction()
+    console.log(`[Admin] User ${user.email} deleted successfully with LP sync`)
+    
+    res.json({ 
+      message: 'User deleted successfully with LP sync',
+      tradesDeleted: deletedTrades.deletedCount
+    })
   } catch (error) {
+    await session.abortTransaction()
+    console.error(`[Admin] Error deleting user: ${error.message}`)
     res.status(500).json({ message: 'Error deleting user', error: error.message })
+  } finally {
+    session.endSession()
   }
 })
-
-// ==================== CREDIT/BONUS SYSTEM ====================
 
 // POST /api/admin/trading-account/:id/add-credit - Add credit/bonus to trading account
 router.post('/trading-account/:id/add-credit', async (req, res) => {
