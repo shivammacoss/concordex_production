@@ -13,6 +13,11 @@ import CopySettings from '../models/CopySettings.js'
 import SupportTicket from '../models/SupportTicket.js'
 import AlgoStrategy from '../models/AlgoStrategy.js'
 import TradingViewSignal from '../models/TradingViewSignal.js'
+import IBUser from '../models/IBUser.js'
+import IBWallet from '../models/IBWallet.js'
+import IBCommission from '../models/IBCommission.js'
+import IBCommissionNew from '../models/IBCommissionNew.js'
+import IBReferral from '../models/IBReferral.js'
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/concorddex_trading'
 
@@ -22,7 +27,7 @@ async function resetDashboardStats() {
     await mongoose.connect(MONGODB_URI)
     console.log('Connected to MongoDB')
 
-    const [transactionCount, tradeCount, walletCount, masterCount, followerCount, copyTradeCount, commissionCount, ticketCount, strategyCount, signalCount] = await Promise.all([
+    const [transactionCount, tradeCount, walletCount, masterCount, followerCount, copyTradeCount, commissionCount, ticketCount, strategyCount, signalCount, ibUserCount, ibWalletCount, ibCommissionCount, ibCommissionNewCount, ibReferralCount] = await Promise.all([
       Transaction.countDocuments(),
       Trade.countDocuments(),
       Wallet.countDocuments(),
@@ -32,7 +37,12 @@ async function resetDashboardStats() {
       CopyCommission.countDocuments(),
       SupportTicket.countDocuments(),
       AlgoStrategy.countDocuments(),
-      TradingViewSignal.countDocuments()
+      TradingViewSignal.countDocuments(),
+      IBUser.countDocuments(),
+      IBWallet.countDocuments(),
+      IBCommission.countDocuments(),
+      IBCommissionNew.countDocuments(),
+      IBReferral.countDocuments()
     ])
 
     console.log(`\nCurrent counts:`)
@@ -46,6 +56,11 @@ async function resetDashboardStats() {
     console.log(`  Support Tickets: ${ticketCount}`)
     console.log(`  Algo Strategies: ${strategyCount}`)
     console.log(`  TradingView Signals: ${signalCount}`)
+    console.log(`  IB Users: ${ibUserCount}`)
+    console.log(`  IB Wallets: ${ibWalletCount}`)
+    console.log(`  IB Commissions (legacy): ${ibCommissionCount}`)
+    console.log(`  IB Commissions (new): ${ibCommissionNewCount}`)
+    console.log(`  IB Referrals: ${ibReferralCount}`)
 
     console.log('\n--- Resetting dashboard data ---')
     const deletedTransactions = await Transaction.deleteMany({})
@@ -82,16 +97,31 @@ async function resetDashboardStats() {
     const deletedTickets = await SupportTicket.deleteMany({})
     console.log(`Deleted ${deletedTickets.deletedCount} support tickets`)
 
-    const [deletedStrategies, deletedSignals] = await Promise.all([
+    const [deletedAlgoStrategies, deletedSignals] = await Promise.all([
       AlgoStrategy.deleteMany({}),
       TradingViewSignal.deleteMany({})
     ])
 
-    console.log(`Deleted ${deletedStrategies.deletedCount} algo strategies`)
+    console.log(`Deleted ${deletedAlgoStrategies.deletedCount} algo strategies`)
     console.log(`Deleted ${deletedSignals.deletedCount} TradingView signals`)
 
-    console.log('\nDashboard stats should now read zero (no deposits, withdrawals, support tickets, active trades, or algo stats).')
-    console.log('Copy trading dashboard should now show zero masters, followers, trades, and admin pool, and algo dashboard should have no strategies/signals.')
+    console.log('\n--- Resetting IB data ---')
+    const [deletedIbUsers, deletedIbWallets, deletedIbCommissions, deletedIbCommissionsNew, deletedIbReferrals] = await Promise.all([
+      IBUser.deleteMany({}),
+      IBWallet.deleteMany({}),
+      IBCommission.deleteMany({}),
+      IBCommissionNew.deleteMany({}),
+      IBReferral.deleteMany({})
+    ])
+
+    console.log(`Deleted ${deletedIbUsers.deletedCount} IB users`)
+    console.log(`Deleted ${deletedIbWallets.deletedCount} IB wallets`)
+    console.log(`Deleted ${deletedIbCommissions.deletedCount} legacy IB commission entries`)
+    console.log(`Deleted ${deletedIbCommissionsNew.deletedCount} new IB commission entries`)
+    console.log(`Deleted ${deletedIbReferrals.deletedCount} IB referrals`)
+
+    console.log('\nDashboard stats should now read zero (no deposits, withdrawals, support tickets, active trades, algo stats, or IB metrics).')
+    console.log('Copy trading dashboard should now show zero masters, followers, trades, and admin pool, algo dashboard should have no strategies/signals, and IB dashboard should have zero counts/commissions.')
 
     await mongoose.disconnect()
     console.log('Disconnected from MongoDB')
