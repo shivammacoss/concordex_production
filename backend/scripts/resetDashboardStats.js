@@ -11,6 +11,8 @@ import CopyTrade from '../models/CopyTrade.js'
 import CopyCommission from '../models/CopyCommission.js'
 import CopySettings from '../models/CopySettings.js'
 import SupportTicket from '../models/SupportTicket.js'
+import AlgoStrategy from '../models/AlgoStrategy.js'
+import TradingViewSignal from '../models/TradingViewSignal.js'
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/concorddex_trading'
 
@@ -20,7 +22,7 @@ async function resetDashboardStats() {
     await mongoose.connect(MONGODB_URI)
     console.log('Connected to MongoDB')
 
-    const [transactionCount, tradeCount, walletCount, masterCount, followerCount, copyTradeCount, commissionCount, ticketCount] = await Promise.all([
+    const [transactionCount, tradeCount, walletCount, masterCount, followerCount, copyTradeCount, commissionCount, ticketCount, strategyCount, signalCount] = await Promise.all([
       Transaction.countDocuments(),
       Trade.countDocuments(),
       Wallet.countDocuments(),
@@ -28,7 +30,9 @@ async function resetDashboardStats() {
       CopyFollower.countDocuments(),
       CopyTrade.countDocuments(),
       CopyCommission.countDocuments(),
-      SupportTicket.countDocuments()
+      SupportTicket.countDocuments(),
+      AlgoStrategy.countDocuments(),
+      TradingViewSignal.countDocuments()
     ])
 
     console.log(`\nCurrent counts:`)
@@ -40,6 +44,8 @@ async function resetDashboardStats() {
     console.log(`  Copy Trades: ${copyTradeCount}`)
     console.log(`  Copy Commissions: ${commissionCount}`)
     console.log(`  Support Tickets: ${ticketCount}`)
+    console.log(`  Algo Strategies: ${strategyCount}`)
+    console.log(`  TradingView Signals: ${signalCount}`)
 
     console.log('\n--- Resetting dashboard data ---')
     const deletedTransactions = await Transaction.deleteMany({})
@@ -76,8 +82,16 @@ async function resetDashboardStats() {
     const deletedTickets = await SupportTicket.deleteMany({})
     console.log(`Deleted ${deletedTickets.deletedCount} support tickets`)
 
-    console.log('\nDashboard stats should now read zero (no deposits, withdrawals, support tickets, or active trades).')
-    console.log('Copy trading dashboard should now show zero masters, followers, trades, and admin pool.')
+    const [deletedStrategies, deletedSignals] = await Promise.all([
+      AlgoStrategy.deleteMany({}),
+      TradingViewSignal.deleteMany({})
+    ])
+
+    console.log(`Deleted ${deletedStrategies.deletedCount} algo strategies`)
+    console.log(`Deleted ${deletedSignals.deletedCount} TradingView signals`)
+
+    console.log('\nDashboard stats should now read zero (no deposits, withdrawals, support tickets, active trades, or algo stats).')
+    console.log('Copy trading dashboard should now show zero masters, followers, trades, and admin pool, and algo dashboard should have no strategies/signals.')
 
     await mongoose.disconnect()
     console.log('Disconnected from MongoDB')
