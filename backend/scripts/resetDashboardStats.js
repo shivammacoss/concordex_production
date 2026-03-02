@@ -18,6 +18,7 @@ import IBWallet from '../models/IBWallet.js'
 import IBCommission from '../models/IBCommission.js'
 import IBReferral from '../models/IBReferral.js'
 import UserCryptoWallet from '../models/UserCryptoWallet.js'
+import UserBankAccount from '../models/UserBankAccount.js'
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/concorddex_trading'
 
@@ -27,7 +28,7 @@ async function resetDashboardStats() {
     await mongoose.connect(MONGODB_URI)
     console.log('Connected to MongoDB')
 
-    const [transactionCount, tradeCount, walletCount, masterCount, followerCount, copyTradeCount, commissionCount, ticketCount, strategyCount, signalCount, ibUserCount, ibWalletCount, ibCommissionCount, ibReferralCount, cryptoWalletCount] = await Promise.all([
+    const [transactionCount, tradeCount, walletCount, masterCount, followerCount, copyTradeCount, commissionCount, ticketCount, strategyCount, signalCount, ibUserCount, ibWalletCount, ibCommissionCount, ibReferralCount, cryptoWalletCount, bankAccountCount] = await Promise.all([
       Transaction.countDocuments(),
       Trade.countDocuments(),
       Wallet.countDocuments(),
@@ -42,7 +43,8 @@ async function resetDashboardStats() {
       IBWallet.countDocuments(),
       IBCommission.countDocuments(),
       IBReferral.countDocuments(),
-      UserCryptoWallet.countDocuments()
+      UserCryptoWallet.countDocuments(),
+      UserBankAccount.countDocuments()
     ])
 
     console.log(`\nCurrent counts:`)
@@ -61,6 +63,7 @@ async function resetDashboardStats() {
     console.log(`  IB Commissions: ${ibCommissionCount}`)
     console.log(`  IB Referrals: ${ibReferralCount}`)
     console.log(`  User Crypto Wallet Requests: ${cryptoWalletCount}`)
+    console.log(`  User Bank Accounts: ${bankAccountCount}`)
 
     console.log('\n--- Resetting dashboard data ---')
     const deletedTransactions = await Transaction.deleteMany({})
@@ -106,12 +109,13 @@ async function resetDashboardStats() {
     console.log(`Deleted ${deletedSignals.deletedCount} TradingView signals`)
 
     console.log('\n--- Resetting IB data ---')
-    const [deletedIbUsers, deletedIbWallets, deletedIbCommissions, deletedIbReferrals, deletedCryptoWallets] = await Promise.all([
+    const [deletedIbUsers, deletedIbWallets, deletedIbCommissions, deletedIbReferrals, deletedCryptoWallets, deletedBankAccounts] = await Promise.all([
       IBUser.deleteMany({}),
       IBWallet.deleteMany({}),
       IBCommission.deleteMany({}),
       IBReferral.deleteMany({}),
-      UserCryptoWallet.deleteMany({})
+      UserCryptoWallet.deleteMany({}),
+      UserBankAccount.deleteMany({})
     ])
 
     console.log(`Deleted ${deletedIbUsers.deletedCount} IB users`)
@@ -119,9 +123,10 @@ async function resetDashboardStats() {
     console.log(`Deleted ${deletedIbCommissions.deletedCount} IB commission entries`)
     console.log(`Deleted ${deletedIbReferrals.deletedCount} IB referrals`)
     console.log(`Deleted ${deletedCryptoWallets.deletedCount} user crypto wallets`)
+    console.log(`Deleted ${deletedBankAccounts.deletedCount} user bank/local withdrawal requests`)
 
-    console.log('\nDashboard stats should now read zero (no deposits, withdrawals, support tickets, active trades, algo stats, IB metrics, or crypto wallet requests).')
-    console.log('Copy trading dashboard should now show zero masters, followers, trades, and admin pool, algo dashboard should have no strategies/signals, IB dashboard should have zero counts/commissions, and bank settings crypto requests should be empty.')
+    console.log('\nDashboard stats should now read zero (no deposits, withdrawals, support tickets, active trades, algo stats, IB metrics, crypto wallet requests, or local withdrawal/bank requests).')
+    console.log('Copy trading dashboard should now show zero masters, followers, trades, and admin pool, algo dashboard should have no strategies/signals, IB dashboard should have zero counts/commissions, and all Bank Settings tabs should be empty.')
 
     await mongoose.disconnect()
     console.log('Disconnected from MongoDB')
