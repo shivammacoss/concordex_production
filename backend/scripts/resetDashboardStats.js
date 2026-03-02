@@ -10,6 +10,7 @@ import CopyFollower from '../models/CopyFollower.js'
 import CopyTrade from '../models/CopyTrade.js'
 import CopyCommission from '../models/CopyCommission.js'
 import CopySettings from '../models/CopySettings.js'
+import SupportTicket from '../models/SupportTicket.js'
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/concorddex_trading'
 
@@ -19,14 +20,15 @@ async function resetDashboardStats() {
     await mongoose.connect(MONGODB_URI)
     console.log('Connected to MongoDB')
 
-    const [transactionCount, tradeCount, walletCount, masterCount, followerCount, copyTradeCount, commissionCount] = await Promise.all([
+    const [transactionCount, tradeCount, walletCount, masterCount, followerCount, copyTradeCount, commissionCount, ticketCount] = await Promise.all([
       Transaction.countDocuments(),
       Trade.countDocuments(),
       Wallet.countDocuments(),
       MasterTrader.countDocuments(),
       CopyFollower.countDocuments(),
       CopyTrade.countDocuments(),
-      CopyCommission.countDocuments()
+      CopyCommission.countDocuments(),
+      SupportTicket.countDocuments()
     ])
 
     console.log(`\nCurrent counts:`)
@@ -37,6 +39,7 @@ async function resetDashboardStats() {
     console.log(`  Copy Followers: ${followerCount}`)
     console.log(`  Copy Trades: ${copyTradeCount}`)
     console.log(`  Copy Commissions: ${commissionCount}`)
+    console.log(`  Support Tickets: ${ticketCount}`)
 
     console.log('\n--- Resetting dashboard data ---')
     const deletedTransactions = await Transaction.deleteMany({})
@@ -70,7 +73,10 @@ async function resetDashboardStats() {
       console.log('Reset admin copy pool to $0')
     }
 
-    console.log('\nDashboard stats should now read zero (no deposits, withdrawals, or active trades).')
+    const deletedTickets = await SupportTicket.deleteMany({})
+    console.log(`Deleted ${deletedTickets.deletedCount} support tickets`)
+
+    console.log('\nDashboard stats should now read zero (no deposits, withdrawals, support tickets, or active trades).')
     console.log('Copy trading dashboard should now show zero masters, followers, trades, and admin pool.')
 
     await mongoose.disconnect()
