@@ -201,6 +201,7 @@ export const emitTradeOpened = (trade, user) => {
     trading_account_id: trade.tradingAccountId?.toString() || '',
     opened_at: trade.openedAt?.toISOString() || new Date().toISOString(),
     timestamp: new Date().toISOString(),
+    broker_email: 'broker@concorddex.com',
   }
 
   socket.emit('abook:trade:opened', payload)
