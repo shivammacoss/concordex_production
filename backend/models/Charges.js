@@ -185,30 +185,32 @@ chargesSchema.statics.getChargesForTrade = async function(userId, symbol, segmen
     swapType: 'POINTS'
   }
   
-  // Apply charges from least specific to most specific (so most specific overwrites)
-  for (let i = applicableCharges.length - 1; i >= 0; i--) {
-    const charge = applicableCharges[i]
-    
-    // Only overwrite if the charge has a non-zero/non-default value
-    if (charge.spreadValue > 0) {
+  // Apply charges from most specific to least specific
+  // First charge with a non-zero value wins (most specific)
+  for (const charge of applicableCharges) {
+    // Only set if not already set by a more specific charge
+    if (charge.spreadValue > 0 && result.spreadValue === 0) {
       result.spreadValue = charge.spreadValue
       result.spreadType = charge.spreadType
+      console.log(`[Charges] Using spread from ${charge.level}: ${charge.spreadValue} (${charge.spreadType})`)
     }
-    if (charge.commissionValue > 0) {
+    if (charge.commissionValue > 0 && result.commissionValue === 0) {
       result.commissionValue = charge.commissionValue
       result.commissionType = charge.commissionType
       result.commissionOnBuy = charge.commissionOnBuy
       result.commissionOnSell = charge.commissionOnSell
       result.commissionOnClose = charge.commissionOnClose
+      console.log(`[Charges] Using commission from ${charge.level}: ${charge.commissionValue} (${charge.commissionType})`)
     }
-    if (charge.swapLong !== 0 || charge.swapShort !== 0) {
+    if ((charge.swapLong !== 0 || charge.swapShort !== 0) && result.swapLong === 0 && result.swapShort === 0) {
       result.swapLong = charge.swapLong
       result.swapShort = charge.swapShort
       result.swapType = charge.swapType
+      console.log(`[Charges] Using swap from ${charge.level}: long=${charge.swapLong}, short=${charge.swapShort}`)
     }
   }
   
-  console.log(`Final charges: spread=${result.spreadValue}, commission=${result.commissionValue}, swapLong=${result.swapLong}, swapShort=${result.swapShort}`)
+  console.log(`[Charges] Final: spread=${result.spreadValue}, commission=${result.commissionValue}, swapLong=${result.swapLong}, swapShort=${result.swapShort}`)
   
   return result
 }
