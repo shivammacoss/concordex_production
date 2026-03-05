@@ -75,7 +75,8 @@ const AdminForexCharges = () => {
   const fetchCharges = async () => {
     setLoading(true)
     try {
-      const res = await adminFetch('/charges?segment=Forex')
+      // Fetch ALL charges without segment filter to show all configured charges
+      const res = await adminFetch('/charges')
       const data = await res.json()
       if (data.success) {
         setCharges(data.charges || [])
