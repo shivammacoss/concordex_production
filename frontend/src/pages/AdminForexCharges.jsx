@@ -209,8 +209,21 @@ const AdminForexCharges = () => {
     }
     if (charge.level === 'INSTRUMENT') return charge.instrumentSymbol
     if (charge.level === 'SEGMENT') return charge.segment
+    if (charge.level === 'ACCOUNT_TYPE') {
+      const accType = accountTypes.find(a => a._id === (charge.accountTypeId?._id || charge.accountTypeId))
+      return accType?.name || 'Account Type'
+    }
     if (charge.level === 'GLOBAL') return 'Global'
     return charge.level
+  }
+
+  // Helper to select all text on focus for number inputs
+  const handleInputFocus = (e) => e.target.select()
+  
+  // Helper to handle number input - allows empty field
+  const handleNumberChange = (field) => (e) => {
+    const val = e.target.value
+    setForm({ ...form, [field]: val === '' ? '' : parseFloat(val) || 0 })
   }
 
   return (
@@ -498,7 +511,7 @@ const AdminForexCharges = () => {
                 </div>
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">Value</label>
-                  <input type="number" step="0.01" value={form.commissionValue} onChange={(e) => setForm({ ...form, commissionValue: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="0" />
+                  <input type="number" step="0.01" value={form.commissionValue} onChange={handleNumberChange('commissionValue')} onFocus={handleInputFocus} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="0" />
                 </div>
               </div>
               
@@ -666,7 +679,7 @@ const AdminForexCharges = () => {
                 </div>
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">Spread Value</label>
-                  <input type="number" step="0.01" value={form.spreadValue} onChange={(e) => setForm({ ...form, spreadValue: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="0" />
+                  <input type="number" step="0.01" value={form.spreadValue} onChange={handleNumberChange('spreadValue')} onFocus={handleInputFocus} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="0" />
                 </div>
               </div>
               
@@ -810,11 +823,11 @@ const AdminForexCharges = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">Swap Long (points)</label>
-                  <input type="number" step="0.01" value={form.swapLong} onChange={(e) => setForm({ ...form, swapLong: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="0" />
+                  <input type="number" step="0.01" value={form.swapLong} onChange={handleNumberChange('swapLong')} onFocus={handleInputFocus} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="0" />
                 </div>
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">Swap Short (points)</label>
-                  <input type="number" step="0.01" value={form.swapShort} onChange={(e) => setForm({ ...form, swapShort: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="0" />
+                  <input type="number" step="0.01" value={form.swapShort} onChange={handleNumberChange('swapShort')} onFocus={handleInputFocus} className="w-full px-3 py-2 bg-dark-700 border border-gray-600 rounded-lg text-white text-sm" placeholder="0" />
                 </div>
               </div>
               
