@@ -337,15 +337,15 @@ class TradeEngine {
       pendingPrice: orderType !== 'MARKET' ? openPrice : null
     })
 
-    // Deduct commission AND spread cost from trading account balance when trade opens
-    if (orderType === 'MARKET') {
-      const totalCharges = commission + spreadCost
-      if (totalCharges > 0) {
-        account.balance -= totalCharges
-        if (account.balance < 0) account.balance = 0
-        await account.save()
-        console.log(`[Trade] Deducted charges from balance: Commission=$${commission}, Spread=$${spreadCost}, Total=$${totalCharges}`)
-      }
+    // Deduct commission from trading account balance when trade opens
+    // NOTE: Spread is NOT deducted here because it's already built into the openPrice
+    // (user buys at ask+spread or sells at bid-spread, so spread is reflected in P&L)
+    // The spreadCost stored in trade.spread is for EARNINGS TRACKING only
+    if (orderType === 'MARKET' && commission > 0) {
+      account.balance -= commission
+      if (account.balance < 0) account.balance = 0
+      await account.save()
+      console.log(`[Trade] Deducted commission from balance: $${commission} (spread $${spreadCost} is built into price, not deducted)`)
     }
 
     // Route trade based on user's book type (A-Book → LP, B-Book → Internal)
@@ -385,19 +385,20 @@ class TradeEngine {
     }
     
     // Calculate final PnL
-    // Note: Open commission and spread were already deducted from balance when trade opened
-    // So realizedPnlForBalance should NOT include them (to avoid double-counting)
-    // But for display, we show: rawPnl - spread - openCommission - swap - closeCommission
+    // Note: Commission was deducted from balance when trade opened
+    // Spread is built into the openPrice (not deducted separately)
+    // So realizedPnlForBalance = rawPnl - swap - closeCommission (commission already deducted)
+    // For display, we show: rawPnl - openCommission - swap - closeCommission
+    // (spread is already reflected in rawPnl via the worse open price)
     const rawPnl = this.calculatePnl(trade.side, trade.openPrice, closePrice, trade.quantity, trade.contractSize)
     const openCommission = trade.commission || 0
-    const spreadCost = trade.spread || 0 // Now stored in USD
     
-    // realizedPnl for balance update (commission and spread already deducted on open)
+    // realizedPnl for balance update (commission already deducted on open)
     const realizedPnlForBalance = rawPnl - trade.swap - closeCommission
     
-    // realizedPnl for display (includes all costs)
-    const realizedPnl = rawPnl - spreadCost - openCommission - trade.swap - closeCommission
-    console.log(`[TradeClose] rawPnl: ${rawPnl}, spread: ${spreadCost}, openCommission: ${openCommission}, swap: ${trade.swap}, closeCommission: ${closeCommission}, realizedPnl: ${realizedPnl}, realizedPnlForBalance: ${realizedPnlForBalance}`)
+    // realizedPnl for display (includes commission costs, spread is already in rawPnl)
+    const realizedPnl = rawPnl - openCommission - trade.swap - closeCommission
+    console.log(`[TradeClose] rawPnl: ${rawPnl}, openCommission: ${openCommission}, swap: ${trade.swap}, closeCommission: ${closeCommission}, realizedPnl: ${realizedPnl}, realizedPnlForBalance: ${realizedPnlForBalance}`)
 
     // Update trade
     trade.closePrice = closePrice
