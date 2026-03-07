@@ -79,14 +79,14 @@ const AdminABookOrders = () => {
     const currentPrice = trade.side === 'BUY' ? prices.bid : prices.ask
     if (!currentPrice || currentPrice <= 0) return trade._lastPnl || 0
     
+    // Show raw P/L without deducting charges (commission/swap shown separately)
     const contractSize = trade.contractSize || getDefaultContractSize(trade.symbol)
     const pnl = trade.side === 'BUY'
       ? (currentPrice - trade.openPrice) * trade.quantity * contractSize
       : (trade.openPrice - currentPrice) * trade.quantity * contractSize
     
-    const finalPnl = pnl - (trade.commission || 0) - (trade.swap || 0)
-    trade._lastPnl = finalPnl
-    return finalPnl
+    trade._lastPnl = pnl
+    return pnl
   }
 
   const formatDate = (date) => {

@@ -166,12 +166,13 @@ const OrderBook = () => {
     const currentPrice = trade.side === 'BUY' ? prices.bid : prices.ask
     if (!currentPrice) return 0
     
+    // Show raw P/L without deducting charges (commission/swap shown separately)
     const contractSize = trade.contractSize || getContractSize(trade.symbol)
     const pnl = trade.side === 'BUY'
       ? (currentPrice - trade.openPrice) * trade.quantity * contractSize
       : (trade.openPrice - currentPrice) * trade.quantity * contractSize
     
-    return pnl - (trade.commission || 0) - (trade.swap || 0)
+    return pnl
   }
 
   const getContractSize = (symbol) => {

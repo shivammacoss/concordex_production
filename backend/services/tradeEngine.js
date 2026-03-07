@@ -98,14 +98,13 @@ class TradeEngine {
     return Math.round(spreadCost * 100) / 100
   }
 
-  // Calculate floating PnL including charges
-  // Note: spread and commission are already deducted from balance when trade opens
-  // So floating PnL should NOT subtract them again (they're already accounted for)
-  // Only swap is accumulated over time and needs to be subtracted
+  // Calculate floating PnL - raw P/L only (charges shown separately)
+  // Commission is already deducted from balance when trade opens
+  // Swap is shown separately, not deducted from P/L
   calculateFloatingPnl(trade, currentBid, currentAsk) {
     const currentPrice = trade.side === 'BUY' ? currentBid : currentAsk
     const rawPnl = this.calculatePnl(trade.side, trade.openPrice, currentPrice, trade.quantity, trade.contractSize)
-    return rawPnl - trade.swap
+    return rawPnl
   }
 
   // Get account financial summary (real-time calculated values)

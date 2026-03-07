@@ -141,14 +141,13 @@ const AdminTradeManagement = () => {
     // XAUUSD = 100, XAGUSD = 5000, Crypto = 1, Forex = 100000
     const contractSize = trade.contractSize || getDefaultContractSize(trade.symbol)
     
+    // Show raw P/L without deducting charges (commission/swap shown separately)
     const pnl = trade.side === 'BUY'
       ? (currentPrice - trade.openPrice) * trade.quantity * contractSize
       : (trade.openPrice - currentPrice) * trade.quantity * contractSize
     
-    // Subtract commission and swap like user's page does
-    const finalPnl = pnl - (trade.commission || 0) - (trade.swap || 0)
-    trade._lastPnl = finalPnl
-    return finalPnl
+    trade._lastPnl = pnl
+    return pnl
   }
 
   // Get default contract size based on symbol (matches backend tradeEngine)

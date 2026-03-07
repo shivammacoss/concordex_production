@@ -332,7 +332,8 @@ const TradingPage = () => {
           const pnl = trade.side === 'BUY'
             ? (currentPrice - trade.openPrice) * trade.quantity * trade.contractSize
             : (trade.openPrice - currentPrice) * trade.quantity * trade.contractSize
-          totalFloatingPnl += pnl - (trade.commission || 0) - (trade.swap || 0)
+          // Show raw P/L without deducting charges (commission/swap shown separately)
+          totalFloatingPnl += pnl
         }
         totalUsedMargin += trade.marginUsed || 0
       })
