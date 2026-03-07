@@ -200,17 +200,59 @@ const AdminTradingView = () => {
   }
 
   const calculateStats = (signals) => {
-    const uniqueStrategies = [...new Set(signals.map(s => s.strategy_name))]
+    const uniqueStrategies = [...new Set(signals.filter(s => s.strategy_name).map(s => s.strategy_name))]
     const buySignals = signals.filter(s => s.action === 'BUY' || s.action === 'SELL')
+    
+    // Calculate real P/L from closed trades
+    let totalPnl = 0
+    let todayPnl = 0
+    let winCount = 0
+    let totalClosedTrades = 0
     const today = new Date().toDateString()
-    const todaySignals = signals.filter(s => new Date(s.timestamp).toDateString() === today)
+    
+    // Match open/close signals to calculate P/L
+    const openSignals = []
+    const sortedSignals = [...signals].reverse()
+    
+    sortedSignals.forEach(signal => {
+      if (signal.action === 'BUY' || signal.action === 'SELL') {
+        openSignals.push(signal)
+      } else if (signal.action === 'CLOSE' || signal.action === 'CLOSE_ALL') {
+        const matchIndex = openSignals.findIndex(
+          s => s.symbol === signal.symbol && s.strategy_name === signal.strategy_name
+        )
+        if (matchIndex !== -1) {
+          const openSignal = openSignals.splice(matchIndex, 1)[0]
+          const entryPrice = openSignal.price || 0
+          const exitPrice = signal.price || 0
+          const quantity = openSignal.quantity || 0.01
+          
+          let pnl = 0
+          if (entryPrice && exitPrice) {
+            if (openSignal.action === 'BUY') {
+              pnl = (exitPrice - entryPrice) * quantity * 100
+            } else {
+              pnl = (entryPrice - exitPrice) * quantity * 100
+            }
+          }
+          
+          totalPnl += pnl
+          totalClosedTrades++
+          if (pnl > 0) winCount++
+          
+          if (new Date(signal.timestamp).toDateString() === today) {
+            todayPnl += pnl
+          }
+        }
+      }
+    })
 
     setStats({
       activeStrategies: uniqueStrategies.length,
       openPositions: positions.length,
-      todayPnl: todaySignals.length * 0.05,
-      totalPnl: signals.length * 0.08,
-      winRate: signals.length > 0 ? 50 : 0,
+      todayPnl: Math.round(todayPnl * 100) / 100,
+      totalPnl: Math.round(totalPnl * 100) / 100,
+      winRate: totalClosedTrades > 0 ? Math.round((winCount / totalClosedTrades) * 100 * 100) / 100 : 0,
       totalTrades: buySignals.length
     })
   }
