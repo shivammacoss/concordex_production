@@ -552,6 +552,99 @@ router.get('/check-slug/:slug', async (req, res) => {
   }
 })
 
+// ==================== ADMIN SELF-SERVICE ====================
+
+// PUT /api/admin-mgmt/me/credentials - Update own credentials (logged-in admin)
+router.put('/me/credentials', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'No token provided' })
+    }
+
+    const token = authHeader.split(' ')[1]
+    const decoded = jwt.verify(token, getJwtSecret())
+    
+    const admin = await Admin.findById(decoded.adminId)
+    if (!admin) {
+      return res.status(404).json({ message: 'Admin not found' })
+    }
+
+    const { currentPassword, newPassword, newEmail } = req.body
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, admin.password)
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Current password is incorrect' })
+    }
+
+    // Update email if provided
+    if (newEmail && newEmail !== admin.email) {
+      const existingEmail = await Admin.findOne({ email: newEmail.toLowerCase(), _id: { $ne: admin._id } })
+      if (existingEmail) {
+        return res.status(400).json({ message: 'Email already in use' })
+      }
+      admin.email = newEmail.toLowerCase()
+    }
+
+    // Update password if provided
+    if (newPassword) {
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: 'New password must be at least 6 characters' })
+      }
+      admin.password = await bcrypt.hash(newPassword, 10)
+    }
+
+    await admin.save()
+
+    res.json({
+      success: true,
+      message: 'Credentials updated successfully',
+      admin: {
+        email: admin.email
+      }
+    })
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: 'Invalid token' })
+    }
+    res.status(500).json({ message: 'Error updating credentials', error: error.message })
+  }
+})
+
+// GET /api/admin-mgmt/me - Get current admin profile
+router.get('/me', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'No token provided' })
+    }
+
+    const token = authHeader.split(' ')[1]
+    const decoded = jwt.verify(token, getJwtSecret())
+    
+    const admin = await Admin.findById(decoded.adminId).select('-password')
+    if (!admin) {
+      return res.status(404).json({ message: 'Admin not found' })
+    }
+
+    const wallet = await AdminWallet.findOne({ adminId: admin._id })
+
+    res.json({
+      success: true,
+      admin: {
+        ...admin.toObject(),
+        walletBalance: wallet?.balance || 0
+      }
+    })
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: 'Invalid token' })
+    }
+    res.status(500).json({ message: 'Error fetching profile', error: error.message })
+  }
+})
+
 // ==================== INITIALIZE SUPER ADMIN ====================
 
 // POST /api/admin-mgmt/init-super-admin - Create initial super admin

@@ -43,6 +43,7 @@ import AdminEmailTemplates from './pages/AdminEmailTemplates'
 import AdminBookManagement from './pages/AdminBookManagement'
 import AdminABookOrders from './pages/AdminABookOrders'
 import AdminTradingView from './pages/AdminTradingView'
+import AdminSettings from './pages/AdminSettings'
 import LandingPage from './pages/LandingPage'
 
 function App() {
@@ -110,6 +111,7 @@ function App() {
         <Route path="/admin/email-templates" element={<AdminEmailTemplates />} />
         <Route path="/admin/book-management" element={<AdminBookManagement />} />
         <Route path="/admin/a-book-orders" element={<AdminABookOrders />} />
+        <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/buy-challenge" element={<BuyChallengePage />} />
         <Route path="/challenge-dashboard" element={<ChallengeDashboardPage />} />
         <Route path="/:slug/login" element={<BrandedLogin />} />

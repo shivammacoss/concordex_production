@@ -25,7 +25,8 @@ import {
   Mail,
   BookOpen,
   BookMarked,
-  Activity
+  Activity,
+  Settings
 } from 'lucide-react'
 
 const AdminLayout = ({ children, title, subtitle }) => {
@@ -55,6 +56,7 @@ const AdminLayout = ({ children, title, subtitle }) => {
     { name: 'Admin Management', icon: Shield, path: '/admin/admin-management' },
     { name: 'KYC Verification', icon: FileCheck, path: '/admin/kyc' },
     { name: 'Support Tickets', icon: HeadphonesIcon, path: '/admin/support' },
+    { name: 'Admin Settings', icon: Settings, path: '/admin/settings' },
   ]
 
   useEffect(() => {
