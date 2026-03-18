@@ -410,7 +410,8 @@ class TradeEngine {
     // Update trade
     trade.closePrice = closePrice
     trade.closeCommission = closeCommission  // Store close commission in trade record
-    trade.realizedPnl = realizedPnl
+    trade.rawPnl = rawPnl  // Store raw P&L (pure price movement, no charges)
+    trade.realizedPnl = realizedPnl  // Net P&L after all charges
     trade.status = 'CLOSED'
     trade.closedBy = closedBy
     trade.closedAt = new Date()

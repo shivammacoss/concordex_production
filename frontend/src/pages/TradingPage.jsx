@@ -1614,16 +1614,17 @@ const TradingPage = () => {
                     <th className="text-left py-2 px-3 font-normal">Lots</th>
                     <th className="text-left py-2 px-3 font-normal">Entry</th>
                     <th className="text-left py-2 px-3 font-normal">Close</th>
+                    <th className="text-left py-2 px-3 font-normal">Raw P/L</th>
                     <th className="text-left py-2 px-3 font-normal">Charges</th>
                     <th className="text-left py-2 px-3 font-normal">Swap</th>
-                    <th className="text-left py-2 px-3 font-normal">P/L</th>
+                    <th className="text-left py-2 px-3 font-normal">Net P/L</th>
                     <th className="text-left py-2 px-3 font-normal">Closed By</th>
                   </tr>
                 </thead>
                 <tbody>
                   {tradeHistory.length === 0 ? (
                     <tr>
-                      <td colSpan="10" className="text-center py-8 text-gray-500">No trade history</td>
+                      <td colSpan="11" className="text-center py-8 text-gray-500">No trade history</td>
                     </tr>
                   ) : (
                     tradeHistory.map(trade => {
@@ -1643,7 +1644,10 @@ const TradingPage = () => {
                           <td className="py-2 px-3 text-xs">{trade.quantity}</td>
                           <td className="py-2 px-3 text-xs">{formatPrice(trade.openPrice)}</td>
                           <td className="py-2 px-3 text-xs">{formatPrice(trade.closePrice)}</td>
-                          <td className="py-2 px-3 text-xs">${((trade.commission || 0) + (trade.closeCommission || 0)).toFixed(2)}</td>
+                          <td className={`py-2 px-3 text-xs font-medium ${(trade.rawPnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            ${(trade.rawPnl || 0).toFixed(2)}
+                          </td>
+                          <td className="py-2 px-3 text-xs text-yellow-400">${((trade.commission || 0) + (trade.closeCommission || 0)).toFixed(2)}</td>
                           <td className="py-2 px-3 text-xs">${trade.swap?.toFixed(2) || '0.00'}</td>
                           <td className={`py-2 px-3 text-xs font-medium ${trade.realizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                             ${trade.realizedPnl?.toFixed(2) || '0.00'}

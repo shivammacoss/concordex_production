@@ -105,6 +105,10 @@ const tradeSchema = new mongoose.Schema({
     type: Number,
     default: null
   },
+  rawPnl: {
+    type: Number,
+    default: null
+  },
   status: {
     type: String,
     enum: ['OPEN', 'CLOSED', 'PENDING', 'CANCELLED'],
