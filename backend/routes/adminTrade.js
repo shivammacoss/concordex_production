@@ -60,7 +60,7 @@ router.post('/create', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing required fields' })
     }
 
-    const account = await TradingAccount.findById(tradingAccountId)
+    const account = await TradingAccount.findById(tradingAccountId).populate('accountTypeId')
     if (!account) {
       return res.status(404).json({ success: false, message: 'Trading account not found' })
     }
@@ -71,6 +71,30 @@ router.post('/create', async (req, res) => {
     const leverageNum = parseInt(leverage.toString().replace('1:', '')) || 100
     const marginRequired = (quantity * contractSize * openPrice) / leverageNum
 
+    // Determine segment based on symbol
+    let segment = 'Forex'
+    if (['XAUUSD', 'XAGUSD'].includes(symbol)) segment = 'Metals'
+    else if (['BTCUSD', 'ETHUSD', 'LTCUSD', 'XRPUSD', 'BCHUSD'].includes(symbol)) segment = 'Crypto'
+    else if (['US30', 'US500', 'NAS100'].includes(symbol)) segment = 'Indices'
+
+    // Get charges for this trade (commission, spread, swap)
+    const charges = await Charges.getChargesForTrade(userId, symbol, segment, account.accountTypeId?._id)
+    
+    // Fallback to AccountType's commission if no charges found
+    if (charges.commissionValue === 0 && account.accountTypeId?.commission > 0) {
+      charges.commissionValue = account.accountTypeId.commission
+      charges.commissionType = 'PER_LOT'
+    }
+
+    // Calculate commission based on side and commission settings
+    let commission = 0
+    const shouldChargeCommission = (side === 'BUY' && charges.commissionOnBuy !== false) || 
+                                   (side === 'SELL' && charges.commissionOnSell !== false)
+    
+    if (shouldChargeCommission && charges.commissionValue > 0) {
+      commission = tradeEngine.calculateCommission(quantity, openPrice, charges.commissionType, charges.commissionValue, contractSize)
+    }
+
     // Generate trade ID
     const tradeId = await Trade.generateTradeId()
 
@@ -80,7 +104,7 @@ router.post('/create', async (req, res) => {
       tradingAccountId,
       tradeId,
       symbol,
-      segment: symbol.includes('USD') && symbol.length <= 6 ? 'Forex' : 'Crypto',
+      segment,
       side,
       orderType: 'MARKET',
       quantity,
@@ -91,7 +115,7 @@ router.post('/create', async (req, res) => {
       leverage: leverageNum,
       contractSize,
       spread: 0,
-      commission: 0,
+      commission,
       swap: 0,
       floatingPnl: 0,
       status: 'OPEN',
@@ -99,7 +123,15 @@ router.post('/create', async (req, res) => {
       adminModifiedAt: new Date()
     })
 
-    res.json({ success: true, message: 'Trade created', trade })
+    // Deduct commission from trading account balance
+    if (commission > 0) {
+      account.balance -= commission
+      if (account.balance < 0) account.balance = 0
+      await account.save()
+      console.log(`[AdminTrade] Deducted commission $${commission} from account ${tradingAccountId}`)
+    }
+
+    res.json({ success: true, message: 'Trade created', trade, commission })
   } catch (error) {
     console.error('Error creating trade:', error)
     res.status(500).json({ success: false, message: error.message })
@@ -780,6 +812,9 @@ router.post('/charges', async (req, res) => {
       spreadValue,
       commissionType,
       commissionValue,
+      commissionOnBuy,
+      commissionOnSell,
+      commissionOnClose,
       swapLong,
       swapShort,
       swapType,
@@ -803,6 +838,9 @@ router.post('/charges', async (req, res) => {
       spreadValue: spreadValue || 0,
       commissionType: commissionType || 'PER_LOT',
       commissionValue: commissionValue || 0,
+      commissionOnBuy: commissionOnBuy !== false,
+      commissionOnSell: commissionOnSell !== false,
+      commissionOnClose: commissionOnClose === true,
       swapLong: swapLong || 0,
       swapShort: swapShort || 0,
       swapType: swapType || 'POINTS'
@@ -839,6 +877,9 @@ router.put('/charges/:id', async (req, res) => {
       spreadValue,
       commissionType,
       commissionValue,
+      commissionOnBuy,
+      commissionOnSell,
+      commissionOnClose,
       swapLong,
       swapShort,
       swapType,
@@ -860,6 +901,9 @@ router.put('/charges/:id', async (req, res) => {
     if (spreadValue !== undefined) charges.spreadValue = spreadValue
     if (commissionType !== undefined) charges.commissionType = commissionType
     if (commissionValue !== undefined) charges.commissionValue = commissionValue
+    if (commissionOnBuy !== undefined) charges.commissionOnBuy = commissionOnBuy
+    if (commissionOnSell !== undefined) charges.commissionOnSell = commissionOnSell
+    if (commissionOnClose !== undefined) charges.commissionOnClose = commissionOnClose
     if (swapLong !== undefined) charges.swapLong = swapLong
     if (swapShort !== undefined) charges.swapShort = swapShort
     if (swapType !== undefined) charges.swapType = swapType

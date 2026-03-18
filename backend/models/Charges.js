@@ -197,10 +197,11 @@ chargesSchema.statics.getChargesForTrade = async function(userId, symbol, segmen
     if (charge.commissionValue > 0 && result.commissionValue === 0) {
       result.commissionValue = charge.commissionValue
       result.commissionType = charge.commissionType
-      result.commissionOnBuy = charge.commissionOnBuy
-      result.commissionOnSell = charge.commissionOnSell
-      result.commissionOnClose = charge.commissionOnClose
-      console.log(`[Charges] Using commission from ${charge.level}: ${charge.commissionValue} (${charge.commissionType})`)
+      // Handle undefined values - default to true for buy/sell, false for close
+      result.commissionOnBuy = charge.commissionOnBuy !== false
+      result.commissionOnSell = charge.commissionOnSell !== false
+      result.commissionOnClose = charge.commissionOnClose === true
+      console.log(`[Charges] Using commission from ${charge.level}: ${charge.commissionValue} (${charge.commissionType}), onBuy=${result.commissionOnBuy}, onSell=${result.commissionOnSell}, onClose=${result.commissionOnClose}`)
     }
     if ((charge.swapLong !== 0 || charge.swapShort !== 0) && result.swapLong === 0 && result.swapShort === 0) {
       result.swapLong = charge.swapLong
