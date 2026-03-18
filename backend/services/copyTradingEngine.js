@@ -208,6 +208,14 @@ class CopyTradingEngine {
           console.log(`[CopyTrade] AUTO FINAL: BeforeMaxLimit=${beforeMaxLimit}, MaxLotSize=${follower.maxLotSize || 'not set'}, FinalLot=${followerLotSize}`)
         }
 
+        // CRITICAL: Ensure followerLotSize is always positive and at least 0.01
+        // This handles edge cases like negative equity ratios or invalid copyValue
+        if (followerLotSize <= 0 || isNaN(followerLotSize)) {
+          console.log(`[CopyTrade] Invalid lot size ${followerLotSize}, defaulting to 0.01`)
+          followerLotSize = 0.01
+        }
+        followerLotSize = Math.max(0.01, Math.abs(followerLotSize))
+
         // Check margin
         const contractSize = tradeEngine.getContractSize(masterTrade.symbol)
         const marginRequired = tradeEngine.calculateMargin(

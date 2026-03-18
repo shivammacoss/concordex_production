@@ -231,6 +231,11 @@ class TradeEngine {
     const account = await TradingAccount.findById(tradingAccountId).populate('accountTypeId')
     if (!account) throw new Error('Trading account not found')
 
+    // Validate quantity is positive
+    if (!quantity || quantity <= 0 || isNaN(quantity)) {
+      throw new Error(`Invalid quantity: ${quantity}. Quantity must be a positive number.`)
+    }
+
     // Check if market is open
     if (!this.isMarketOpen(symbol)) {
       throw new Error(`Market is closed for ${symbol}. Forex and metals trade Mon-Fri only.`)
