@@ -385,27 +385,31 @@ class TradeEngine {
     let closeCommission = 0
     if (charges.commissionOnClose && charges.commissionValue > 0) {
       closeCommission = this.calculateCommission(trade.quantity, closePrice, charges.commissionType, charges.commissionValue, trade.contractSize)
-      console.log(`Commission on close: $${closeCommission}`)
+      console.log(`[TradeClose] Commission on close calculated: $${closeCommission} (${charges.commissionValue} per lot, quantity: ${trade.quantity})`)
     }
     
     // Calculate final PnL
-    // Note: Commission was deducted from balance when trade opened
     // Spread is built into the openPrice (not deducted separately)
-    // So realizedPnlForBalance = rawPnl - swap - closeCommission (commission already deducted)
-    // For display, we show: rawPnl - openCommission - swap - closeCommission
-    // (spread is already reflected in rawPnl via the worse open price)
+    // Open commission was deducted when trade opened (if commissionOnBuy/Sell was true)
+    // Close commission will be deducted now from balance
     const rawPnl = this.calculatePnl(trade.side, trade.openPrice, closePrice, trade.quantity, trade.contractSize)
     const openCommission = trade.commission || 0
     
-    // realizedPnl for balance update (commission already deducted on open)
-    const realizedPnlForBalance = rawPnl - trade.swap - closeCommission
+    // realizedPnl for balance update:
+    // - rawPnl is the pure price movement P&L
+    // - swap is overnight fees
+    // - closeCommission is deducted separately from balance (not from PnL)
+    // - openCommission was already deducted from balance on open
+    const realizedPnlForBalance = rawPnl - trade.swap
     
-    // realizedPnl for display (includes commission costs, spread is already in rawPnl)
+    // realizedPnl for display (includes ALL costs: open commission, close commission, swap)
+    // This is what the user sees as their net P&L
     const realizedPnl = rawPnl - openCommission - trade.swap - closeCommission
     console.log(`[TradeClose] rawPnl: ${rawPnl}, openCommission: ${openCommission}, swap: ${trade.swap}, closeCommission: ${closeCommission}, realizedPnl: ${realizedPnl}, realizedPnlForBalance: ${realizedPnlForBalance}`)
 
     // Update trade
     trade.closePrice = closePrice
+    trade.closeCommission = closeCommission  // Store close commission in trade record
     trade.realizedPnl = realizedPnl
     trade.status = 'CLOSED'
     trade.closedBy = closedBy
@@ -421,7 +425,9 @@ class TradeEngine {
 
     // Update account balance with proper credit handling
     const account = await TradingAccount.findById(trade.tradingAccountId)
+    const balanceBefore = account.balance
     
+    // First, apply the P&L (without close commission)
     if (realizedPnlForBalance >= 0) {
       // Profit: Add to balance only (credit stays the same)
       account.balance += realizedPnlForBalance
@@ -442,6 +448,21 @@ class TradeEngine {
           account.credit = Math.max(0, (account.credit || 0) - remainingLoss)
         }
       }
+    }
+    
+    // Now deduct close commission separately from balance
+    if (closeCommission > 0) {
+      if (account.balance >= closeCommission) {
+        account.balance -= closeCommission
+      } else {
+        // Balance cannot cover commission - use credit for remaining
+        const remainingCommission = closeCommission - account.balance
+        account.balance = 0
+        if (account.credit > 0) {
+          account.credit = Math.max(0, (account.credit || 0) - remainingCommission)
+        }
+      }
+      console.log(`[TradeClose] Deducted close commission: $${closeCommission} from balance (before: $${balanceBefore}, after: $${account.balance})`)
     }
     
     await account.save()

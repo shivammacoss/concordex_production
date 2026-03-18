@@ -1643,7 +1643,7 @@ const TradingPage = () => {
                           <td className="py-2 px-3 text-xs">{trade.quantity}</td>
                           <td className="py-2 px-3 text-xs">{formatPrice(trade.openPrice)}</td>
                           <td className="py-2 px-3 text-xs">{formatPrice(trade.closePrice)}</td>
-                          <td className="py-2 px-3 text-xs">${trade.commission?.toFixed(2) || '0.00'}</td>
+                          <td className="py-2 px-3 text-xs">${((trade.commission || 0) + (trade.closeCommission || 0)).toFixed(2)}</td>
                           <td className="py-2 px-3 text-xs">${trade.swap?.toFixed(2) || '0.00'}</td>
                           <td className={`py-2 px-3 text-xs font-medium ${trade.realizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                             ${trade.realizedPnl?.toFixed(2) || '0.00'}

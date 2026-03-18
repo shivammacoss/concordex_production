@@ -89,6 +89,10 @@ const tradeSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  closeCommission: {
+    type: Number,
+    default: 0
+  },
   swap: {
     type: Number,
     default: 0
@@ -188,8 +192,8 @@ tradeSchema.methods.calculatePnl = function(currentBid, currentAsk) {
     pnl = (this.openPrice - currentPrice) * this.quantity * this.contractSize
   }
   
-  // Subtract commission and swap
-  pnl = pnl - this.commission - this.swap
+  // Subtract commission (open + close) and swap
+  pnl = pnl - this.commission - (this.closeCommission || 0) - this.swap
   
   return pnl
 }
