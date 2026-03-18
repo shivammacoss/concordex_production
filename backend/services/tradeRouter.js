@@ -142,12 +142,9 @@ export const routeNewTrade = async (trade, io = null) => {
         console.warn(`[TradeRouter] LP integration not configured, skipping REST sync`)
       }
       
-      // SECONDARY: Emit Socket.IO event to Corecen for real-time UI updates
-      try {
-        corecenSocketClient.emitTradeOpened(trade, user)
-      } catch (socketError) {
-        console.error(`[TradeRouter] Socket error: ${socketError.message}`)
-      }
+      // NOTE: Socket.IO emit removed to prevent duplicate trades in Corecen
+      // REST API (lpIntegration.pushTrade) is the PRIMARY and ONLY method for trade sync
+      // Socket events are only used for real-time price updates, not trade creation
       await trade.save()
       
       console.log(`[TradeRouter] Trade ${trade.tradeId} routed to A-Book (LP)`)
