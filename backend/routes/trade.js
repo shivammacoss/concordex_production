@@ -670,4 +670,25 @@ router.post('/check-pending', async (req, res) => {
   }
 })
 
+// GET /api/trade/leverage-options - Get available leverage options for trading terminal
+router.get('/leverage-options', async (req, res) => {
+  try {
+    const TradeSettings = (await import('../models/TradeSettings.js')).default
+    const settings = await TradeSettings.getSettings()
+    
+    res.json({
+      success: true,
+      leverageOptions: settings.availableLeverageOptions || ['1:10', '1:20', '1:50', '1:100', '1:200', '1:300', '1:400', '1:500'],
+      defaultLeverage: settings.defaultLeverage || '1:100',
+      maxLeverage: settings.maxLeverageGlobal || 500
+    })
+  } catch (error) {
+    console.error('Error fetching leverage options:', error)
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    })
+  }
+})
+
 export default router

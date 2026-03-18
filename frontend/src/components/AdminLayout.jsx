@@ -47,6 +47,7 @@ const AdminLayout = ({ children, title, subtitle }) => {
     { name: 'Bank Settings', icon: Building2, path: '/admin/bank-settings' },
     { name: 'IB Management', icon: UserCog, path: '/admin/ib-management' },
     { name: 'Forex Charges', icon: DollarSign, path: '/admin/forex-charges' },
+    { name: 'Trade Settings', icon: Settings, path: '/admin/trade-settings' },
     { name: 'Earnings Report', icon: TrendingUp, path: '/admin/earnings' },
     { name: 'Copy Trade Management', icon: Copy, path: '/admin/copy-trade' },
     { name: 'Prop Firm Challenges', icon: Trophy, path: '/admin/prop-firm' },

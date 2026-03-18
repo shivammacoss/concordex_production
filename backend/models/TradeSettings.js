@@ -46,6 +46,16 @@ const tradeSettingsSchema = new mongoose.Schema({
     type: Number,
     default: 500
   },
+  // Available leverage options for users to select on trading terminal
+  availableLeverageOptions: {
+    type: [String],
+    default: ['1:10', '1:20', '1:50', '1:100', '1:200', '1:300', '1:400', '1:500']
+  },
+  // Default leverage for new accounts
+  defaultLeverage: {
+    type: String,
+    default: '1:100'
+  },
   maxOpenTradesPerUser: {
     type: Number,
     default: 100

@@ -725,6 +725,8 @@ router.put('/settings', async (req, res) => {
       tripleSwapDay,
       tradingEnabled,
       maxLeverageGlobal,
+      availableLeverageOptions,
+      defaultLeverage,
       maxOpenTradesPerUser,
       maxOpenLotsPerUser,
       adminId
@@ -749,6 +751,8 @@ router.put('/settings', async (req, res) => {
     if (tripleSwapDay !== undefined) settings.tripleSwapDay = tripleSwapDay
     if (tradingEnabled !== undefined) settings.tradingEnabled = tradingEnabled
     if (maxLeverageGlobal !== undefined) settings.maxLeverageGlobal = maxLeverageGlobal
+    if (availableLeverageOptions !== undefined) settings.availableLeverageOptions = availableLeverageOptions
+    if (defaultLeverage !== undefined) settings.defaultLeverage = defaultLeverage
     if (maxOpenTradesPerUser !== undefined) settings.maxOpenTradesPerUser = maxOpenTradesPerUser
     if (maxOpenLotsPerUser !== undefined) settings.maxOpenLotsPerUser = maxOpenLotsPerUser
 
