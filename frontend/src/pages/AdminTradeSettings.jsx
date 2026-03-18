@@ -43,7 +43,7 @@ const AdminTradeSettings = () => {
   const fetchSettings = async () => {
     setLoading(true)
     try {
-      const res = await adminFetch('/admin/settings')
+      const res = await adminFetch('/admin/trade/settings')
       const data = await res.json()
       if (data.success && data.settings) {
         setSettings({
@@ -72,7 +72,7 @@ const AdminTradeSettings = () => {
     setMessage({ type: '', text: '' })
     
     try {
-      const res = await adminFetch('/admin/settings', {
+      const res = await adminFetch('/admin/trade/settings', {
         method: 'PUT',
         body: JSON.stringify({
           ...settings,
