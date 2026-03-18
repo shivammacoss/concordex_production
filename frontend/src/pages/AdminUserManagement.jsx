@@ -58,6 +58,8 @@ const AdminUserManagement = () => {
   const [accountFundAmount, setAccountFundAmount] = useState('')
   const [accountFundReason, setAccountFundReason] = useState('')
   const [userWalletBalance, setUserWalletBalance] = useState(0)
+  const [editingAccountLeverage, setEditingAccountLeverage] = useState('')
+  const [editingAccountStatus, setEditingAccountStatus] = useState('')
   
   const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}')
 
@@ -484,6 +486,39 @@ const AdminUserManagement = () => {
     setActionLoading(false)
   }
 
+  // Update trading account leverage/status
+  const handleUpdateAccountSettings = async () => {
+    if (!selectedAccountId) {
+      setMessage({ type: 'error', text: 'No account selected' })
+      return
+    }
+
+    setActionLoading(true)
+    try {
+      const response = await adminFetch(`/trading-accounts/${selectedAccountId}/admin-update`, {
+        method: 'PUT',
+        body: JSON.stringify({ 
+          leverage: editingAccountLeverage,
+          status: editingAccountStatus
+        })
+      })
+      
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Account settings updated successfully' })
+        await fetchUserAccounts(selectedUser._id)
+        setTimeout(() => {
+          setModalType('tradingAccounts')
+        }, 1500)
+      } else {
+        const data = await response.json()
+        setMessage({ type: 'error', text: data.message || 'Failed to update account' })
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error updating account settings' })
+    }
+    setActionLoading(false)
+  }
+
   const handleLoginAsUser = async () => {
     setActionLoading(true)
     try {
@@ -695,6 +730,12 @@ const AdminUserManagement = () => {
                         </div>
                         <div className="flex gap-2">
                           <button 
+                            onClick={() => { setSelectedAccountId(acc._id); setEditingAccountLeverage(acc.leverage); setEditingAccountStatus(acc.status); setModalType('editAccount'); }}
+                            className="flex-1 py-2 text-xs bg-blue-500/20 text-blue-500 rounded-lg hover:bg-blue-500/30 transition-colors flex items-center justify-center gap-1"
+                          >
+                            <Edit size={14} /> Edit
+                          </button>
+                          <button 
                             onClick={() => { setSelectedAccountId(acc._id); setModalType('addFundAccount'); }}
                             className="flex-1 py-2 text-xs bg-green-500/20 text-green-500 rounded-lg hover:bg-green-500/30 transition-colors flex items-center justify-center gap-1"
                           >
@@ -723,6 +764,67 @@ const AdminUserManagement = () => {
                     className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
                   >
                     Back
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Edit Account (Leverage & Status) */}
+            {modalType === 'editAccount' && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-blue-500 mb-2">
+                  <Edit size={20} />
+                  <h4 className="font-semibold">Edit Account Settings</h4>
+                </div>
+                <div className="bg-dark-700 rounded-lg p-3 mb-4">
+                  <p className="text-gray-400 text-xs">Account</p>
+                  <p className="text-white font-medium">{userAccounts.find(a => a._id === selectedAccountId)?.accountId}</p>
+                </div>
+                <div>
+                  <label className="text-gray-400 text-sm mb-1 block">Leverage</label>
+                  <select
+                    value={editingAccountLeverage}
+                    onChange={(e) => setEditingAccountLeverage(e.target.value)}
+                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="1:10">1:10</option>
+                    <option value="1:20">1:20</option>
+                    <option value="1:50">1:50</option>
+                    <option value="1:100">1:100</option>
+                    <option value="1:200">1:200</option>
+                    <option value="1:300">1:300</option>
+                    <option value="1:400">1:400</option>
+                    <option value="1:500">1:500</option>
+                    <option value="1:1000">1:1000</option>
+                    <option value="1:2000">1:2000</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-gray-400 text-sm mb-1 block">Status</label>
+                  <select
+                    value={editingAccountStatus}
+                    onChange={(e) => setEditingAccountStatus(e.target.value)}
+                    className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Suspended">Suspended</option>
+                    <option value="Frozen">Frozen</option>
+                    <option value="Closed">Closed</option>
+                  </select>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button 
+                    onClick={() => setModalType('tradingAccounts')}
+                    className="flex-1 py-3 bg-dark-700 text-gray-400 rounded-lg hover:bg-dark-600 transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button 
+                    onClick={handleUpdateAccountSettings}
+                    disabled={actionLoading}
+                    className="flex-1 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+                  >
+                    {actionLoading ? 'Updating...' : 'Update'}
                   </button>
                 </div>
               </div>

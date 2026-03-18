@@ -279,11 +279,16 @@ const AdminAccounts = () => {
               <div>
                 <label className="block text-gray-400 text-sm mb-2">Leverage</label>
                 <select value={editForm.leverage} onChange={(e) => setEditForm({ ...editForm, leverage: e.target.value })} className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none">
+                  <option value="1:10">1:10</option>
+                  <option value="1:20">1:20</option>
                   <option value="1:50">1:50</option>
                   <option value="1:100">1:100</option>
                   <option value="1:200">1:200</option>
+                  <option value="1:300">1:300</option>
+                  <option value="1:400">1:400</option>
                   <option value="1:500">1:500</option>
                   <option value="1:1000">1:1000</option>
+                  <option value="1:2000">1:2000</option>
                 </select>
               </div>
 
