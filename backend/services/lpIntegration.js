@@ -84,8 +84,9 @@ const makeRequest = async (method, path, data = null) => {
     const result = await response.json()
 
     if (!response.ok) {
-      console.error(`[LPIntegration] API Error: ${result.message || response.status}`)
-      return { success: false, error: result.message || `HTTP ${response.status}` }
+      const errMsg = result.error?.message || result.message || `HTTP ${response.status}`
+      console.error(`[LPIntegration] API Error: ${errMsg}`, JSON.stringify(result))
+      return { success: false, error: errMsg }
     }
 
     return result
@@ -120,6 +121,7 @@ export const pushTrade = async (trade, user) => {
     contract_size: trade.contractSize || 100000, // CRITICAL: Send actual contract size
     trading_account_id: trade.tradingAccountId?.toString() || '',
     opened_at: trade.openedAt?.toISOString() || new Date().toISOString(),
+    retroactive: true,
   }
 
   console.log(`[LPIntegration] Pushing A-Book trade: ${trade.tradeId}`)
